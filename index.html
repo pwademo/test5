@@ -7,23 +7,31 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
   <style>
-    body {
+
+
+/*   */  
+    #wrapper {
       font-family:Arial, Helvetica, sans-serif;
       color: #333;
       max-width: 250px;
       margin: 0 auto;
       position: relative;
-    }
+      padding:5px;
+      border:solid gray 1px
+    } 
 
 
     #loadingMessage {
+      max-width: 250px;
       text-align: center;
       padding: 30px;
       background-color: #eee;
     }
 
     #canvas {
+      max-width: 250px;
       width: 100%;
+     
     }
 
     #output {
@@ -47,7 +55,7 @@
 
 
 <body>
-
+<div id="wrapper">
   <div id="loadingMessage" hidden>🎥 Unable to access video stream (please make sure you have a webcam enabled)</div>
 
   <canvas id="canvas" hidden></canvas>
@@ -59,16 +67,16 @@
 <br/>
    <button id="scanstart">Scan start</button>
    <button id="scanstop" style="display: none;">Scan stop</button>
-
+</div>
 
   <script>
-    var video = document.createElement("video");
-    var canvasElement = document.getElementById("canvas");
-    var canvas = canvasElement.getContext("2d");
-    var loadingMessage = document.getElementById("loadingMessage");
-    var outputContainer = document.getElementById("output");
-    var outputMessage = document.getElementById("outputMessage");
-    var outputData = document.getElementById("outputData");
+    const video = document.createElement("video");
+    const canvasElement = document.getElementById("canvas");
+    const canvas = canvasElement.getContext("2d");
+    const loadingMessage = document.getElementById("loadingMessage");
+    const outputContainer = document.getElementById("output");
+    const outputMessage = document.getElementById("outputMessage");
+    const outputData = document.getElementById("outputData");
     const scanstart=document.getElementById("scanstart");
     const scanstop=document.getElementById("scanstop");   
 
@@ -96,8 +104,9 @@
         canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
         var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
         var code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: "dontInvert",
+          inversionAttempts: "dontInvert", 
         });
+
         if (code) {
           drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
           drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
@@ -119,6 +128,7 @@
  
  
     function stopStreamedVideo(videoElem) {
+      
         const stream = videoElem.srcObject;
         const tracks = stream.getTracks();
 
@@ -128,10 +138,14 @@
         videoElem.srcObject = null;
         scanstop.style.display="none";
         scanstart.style.display="inline-block";
+
+        canvasElement.hidden = true;
+       
     }
  
     function startScanner(){
       loadingMessage.hidden = false;
+     
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
                     video.srcObject = stream;
                     video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
