@@ -119,7 +119,7 @@
         canvasElement.height = video.videoHeight;
         canvasElement.width = video.videoWidth;
 
-        canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+        canvas.drawImage(video, 0, 0, canvasElement.width*1.5, canvasElement.height*1.5);
  
         var imageData = canvas.getImageData(canvasElement.width/4, canvasElement.height/4, canvasElement.width/2, canvasElement.height/2);
         //var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
@@ -128,12 +128,11 @@
         });
 
         if (code) {
-          console.log(code.location.topLeftCorner);
-          console.log(code.location.topRightCorner);
-          drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
+
+/*           drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
           drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
           drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
-          drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+          drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58"); */
           drawRect("green");
           outputMessage.hidden = true;
           outputData.parentElement.hidden = false;
@@ -142,12 +141,7 @@
           stopStreamedVideo(video);
 
         } else {
-
-
           drawRect("red")
-
-
-
           outputMessage.hidden = false;
           outputData.parentElement.hidden = true;         
         }
@@ -167,7 +161,7 @@
         videoElem.srcObject = null;
         scanstop.hidden=true;
         scanstart.hidden=false;
-        setTimeout(() => canvasElement.hidden = true, 1000)
+        setTimeout(() => canvasElement.hidden = true, 1000)//vent 1 sek og skjul derefter cancas
       //  canvasElement.hidden = true;
        
     }
