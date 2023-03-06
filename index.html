@@ -18,7 +18,7 @@
 
     #loadingMessage {
       text-align: center;
-      padding: 40px;
+      padding: 30px;
       background-color: #eee;
     }
 
@@ -48,7 +48,7 @@
 
 <body>
 
-  <div id="loadingMessage">🎥 Unable to access video stream (please make sure you have a webcam enabled)</div>
+  <div id="loadingMessage" hidden>🎥 Unable to access video stream (please make sure you have a webcam enabled)</div>
 
   <canvas id="canvas" hidden></canvas>
 
@@ -56,14 +56,9 @@
     <div id="outputMessage">No QR code detected.</div>
     <div hidden><b>Data:</b> <span id="outputData"></span></div>
   </div>
-
-
-  <div id="mylog" style="border:solid red 1px">
-  </div>
-
-
-   <button id="scanqr">Scan QR</button>
-
+<br/>
+   <button id="scanstart">Scan start</button>
+   <button id="scanstop" style="display: none;">Scan stop</button>
 
 
   <script>
@@ -74,12 +69,9 @@
     var outputContainer = document.getElementById("output");
     var outputMessage = document.getElementById("outputMessage");
     var outputData = document.getElementById("outputData");
+    const scanstart=document.getElementById("scanstart");
+    const scanstop=document.getElementById("scanstop");   
 
-
-
-    
-
-    var mylog=document.getElementById("mylog");
 
     function drawLine(begin, end, color) {
       canvas.beginPath();
@@ -90,15 +82,9 @@
       canvas.stroke();
     }
 
-    // Use facingMode: environment to attemt to get the front camera on phones
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
-      video.srcObject = stream;
-      video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
-      video.play();
-      requestAnimationFrame(tick);
-    });
 
     function tick() {
+      
       loadingMessage.innerText = "⌛ Loading video..."
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         loadingMessage.hidden = true;
@@ -121,8 +107,6 @@
           outputData.parentElement.hidden = false;
           outputData.innerText = code.data;
 
-          //PQ
-          mylog.innerHTML= code.data + "</br>";
           stopStreamedVideo(video);
 
         } else {
@@ -141,20 +125,35 @@
         tracks.forEach(function(track) {
           track.stop();
         });
-    videoElem.srcObject = null;
+        videoElem.srcObject = null;
+        scanstop.style.display="none";
+        scanstart.style.display="inline-block";
     }
  
+    function startScanner(){
+      loadingMessage.hidden = false;
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
+                    video.srcObject = stream;
+                    video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
+                    video.play();
+                    requestAnimationFrame(tick);
+                    scanstart.style.display="none";
+                    scanstop.style.display="inline-block";}
+        );
+    }
 
-    var scanqr= document.getElementById("scanqr").addEventListener("click",(e)=>{
-      e.preventDefault();
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
-      video.srcObject = stream;
-      video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
-      video.play();
-      requestAnimationFrame(tick);
+    scanstart.addEventListener("click",(e)=>{
+          e.preventDefault();
+          startScanner();
     });
+
+    scanstop.addEventListener("click",(e)=>{
+          e.preventDefault();
+          stopStreamedVideo(video);
     });
- 
+
+    //startScanner();
+
  </script>
 </body>
 </html>
