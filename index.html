@@ -3,29 +3,18 @@
 <head>
   <meta charset="utf-8">
   <title>jsQR Demo</title>
-  <!-- <script src="./jsQR.js"></script> -->
+
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <link href="https://fonts.googleapis.com/css?family=Ropa+Sans" rel="stylesheet">
+
   <style>
     body {
-      font-family: 'Ropa Sans', sans-serif;
+      font-family:Arial, Helvetica, sans-serif;
       color: #333;
-      max-width: 640px;
+      max-width: 250px;
       margin: 0 auto;
       position: relative;
     }
 
-    #githubLink {
-      position: absolute;
-      right: 0;
-      top: 12px;
-      color: #2D99FF;
-    }
-
-    h1 {
-      margin: 10px 0;
-      font-size: 40px;
-    }
 
     #loadingMessage {
       text-align: center;
@@ -54,12 +43,15 @@
     }
   </style>
 </head>
+
+
+
 <body>
-  <h1>jsQR Demo</h1>
-  <a id="githubLink" href="https://github.com/cozmo/jsQR">View documentation on Github</a>
-  <p>Pure JavaScript QR code decoding library.</p>
+
   <div id="loadingMessage">🎥 Unable to access video stream (please make sure you have a webcam enabled)</div>
+
   <canvas id="canvas" hidden></canvas>
+
   <div id="output" hidden>
     <div id="outputMessage">No QR code detected.</div>
     <div hidden><b>Data:</b> <span id="outputData"></span></div>
@@ -67,9 +59,12 @@
 
 
   <div id="mylog" style="border:solid red 1px">
-
-
   </div>
+
+
+   <button id="scanqr">Scan QR</button>
+
+
 
   <script>
     var video = document.createElement("video");
@@ -79,6 +74,10 @@
     var outputContainer = document.getElementById("output");
     var outputMessage = document.getElementById("outputMessage");
     var outputData = document.getElementById("outputData");
+
+
+
+    
 
     var mylog=document.getElementById("mylog");
 
@@ -123,16 +122,39 @@
           outputData.innerText = code.data;
 
           //PQ
-          mylog.innerText+= code.data;
-
+          mylog.innerHTML= code.data + "</br>";
+          stopStreamedVideo(video);
 
         } else {
           outputMessage.hidden = false;
-          outputData.parentElement.hidden = true;
+          outputData.parentElement.hidden = true;         
         }
       }
       requestAnimationFrame(tick);
     }
-  </script>
+ 
+ 
+    function stopStreamedVideo(videoElem) {
+        const stream = videoElem.srcObject;
+        const tracks = stream.getTracks();
+
+        tracks.forEach(function(track) {
+          track.stop();
+        });
+    videoElem.srcObject = null;
+    }
+ 
+
+    var scanqr= document.getElementById("scanqr").addEventListener("click",(e)=>{
+      e.preventDefault();
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
+      video.srcObject = stream;
+      video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
+      video.play();
+      requestAnimationFrame(tick);
+    });
+    });
+ 
+ </script>
 </body>
 </html>
