@@ -13,14 +13,30 @@
     #wrapper {   
       top:0;
       left:0;
-  
-      width:100vw;  
-      height:100vh; 
+    /*  width:640px;  */
+/**/       width:100vw;  
+      height:100vh;  
       margin: 0 0;
-      position: absolute;
+      position: relative;
       overflow: hidden;     
     } 
 
+    #scanstart{
+      position: absolute;
+      top: 10;
+      left:10;
+    }
+    #scanstop{
+      position: absolute;
+      top: 10;
+      left:10;
+    }
+
+    #inputRangeRectWidth{
+      position: absolute;
+      top: 50;
+      left:10;
+    }
 
     #loadingMessage {
       max-width: 250px;
@@ -69,6 +85,7 @@
     <br/>
    <button id="scanstart">Scan start</button>
    <button id="scanstop" hidden>Scan stop</button>
+   <input type="range" name="inputRangeRectWidth" min="50" value="200" max="640" id="inputRangeRectWidth">
 </div>
 
   <script>
@@ -82,10 +99,27 @@
     const outputData = document.getElementById("outputData");
     const scanstart=document.getElementById("scanstart");
     const scanstop=document.getElementById("scanstop");   
-      let rectWidth=200;
-      let rectHeight=200;
+    const inputRangeRectWidth=document.getElementById("inputRangeRectWidth");
+    let rectWidth=0;
+    let rectHeight=0;
+
+
+    
+
+
+      let myReq;
 
 /**/    
+
+document.addEventListener('readystatechange', function(event) {
+    if (document.readyState === "complete") {
+          rectWidth=localStorage.getItem("rectWidth")|| 200;
+          rectWidth=rectWidth*1;//sikre at det er et tal!
+          rectHeight=rectWidth; 
+          inputRangeRectWidth.value=rectWidth;         
+    }
+
+
 
    function drawLine(begin, end, color) {     
       let deltax=(canvasElement.width-rectWidth)/2;
@@ -122,9 +156,14 @@
     }
 
 
-    function tick() {      
+    //denn funktion kaldes via windows.requestAnimationFrame
+    function tick(timestamp) {      
+
+      //console.log(timestamp);
       loadingMessage.innerText = "⌛ Loading video..."
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        //console.log("Does HAVE_ENOUGH_DATA",timestamp);
+
         loadingMessage.hidden = true;
         canvasElement.hidden = false;
         outputContainer.hidden = false;
@@ -142,32 +181,52 @@
           inversionAttempts: "dontInvert", 
         });
 
+       // console.log("LEFT",canvasElement.width);
+/*         scanstop.style.left=(canvasElement.width-rectWidth)/2;
+        scanstop.style.top=(canvasElement.height-rectHeight)/2; */
+        
         if (code) {
-
-/* */      
+          beep1();
           drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
           drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
           drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
           drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
-          console.log(code.location);
+          
+          /* streger mellem qr-kodens 'øje pletter' */
+/*        drawLine(code.location.topLeftFinderPattern, code.location.topRightFinderPattern, "blue");
+          drawLine(code.location.topLeftFinderPattern, code.location.bottomLeftFinderPattern, "blue");
+          drawLine(code.location.bottomRightAlignmentPattern, code.location.bottomLeftFinderPattern, "blue"); */
+
           drawRect("green");
           outputMessage.hidden = true;
           outputData.parentElement.hidden = false;
           outputData.innerText = code.data;
 
-          stopStreamedVideo(video);
+          stopStreamedVideo(video,4000);//stopper med delay på 4000 millisek
 
         } else {
-          drawRect("red")
+          drawRect("red");
+          
+
           outputMessage.hidden = false;
-          outputData.parentElement.hidden = true;         
+          outputData.parentElement.hidden = true; 
+          myReq = window.requestAnimationFrame(tick);
+          
         }
+
+
+
+      }//end video.HAVE_ENOUGH_DATA
+      else{
+        //gentag requestAnimationFrame indtil video.HAVE_ENOUGH_DATA
+        console.log("NOT HAVE_ENOUGH_DATA",timestamp);
+        myReq = window.requestAnimationFrame(tick);
       }
-      requestAnimationFrame(tick);
+      
     }
  
  
-    function stopStreamedVideo(videoElem) {
+    function stopStreamedVideo(videoElem,delaymillisec=0) {
       
         const stream = videoElem.srcObject;
         const tracks = stream.getTracks();
@@ -177,22 +236,21 @@
         });
         videoElem.srcObject = null;
         scanstop.hidden=true;
-        scanstart.hidden=false;
-        beep1();
-        //beeb.play();
-        setTimeout(() => canvasElement.hidden = true, 1500)//vent 1 sek og skjul derefter cancas
-      //  canvasElement.hidden = true;
-       
+        scanstart.hidden=false;        
+        
+        setTimeout(() => canvasElement.hidden = true, delaymillisec)//vent x millisekunder og skjul derefter cancas         
     }
  
     function startScanner(){
+
       loadingMessage.hidden = false;
      
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
                     video.srcObject = stream;
                     video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
                     video.play();
-                    requestAnimationFrame(tick);
+
+                    myReq = window.requestAnimationFrame(tick);
 
                     scanstart.hidden=true;
                     scanstop.hidden=false;}
@@ -207,7 +265,20 @@
     scanstop.addEventListener("click",(e)=>{
           e.preventDefault();
           stopStreamedVideo(video);
+          window.cancelAnimationFrame(myReq);
     });
+
+
+
+
+    inputRangeRectWidth.addEventListener("input",(e)=>{
+      rectWidth=Math.floor(e.target.value);
+      rectHeight=Math.floor(e.target.value);
+      localStorage.setItem("rectWidth",rectWidth);
+       console.log(rectWidth);
+    })
+
+  });
 
     /* #endregion scanner */
     </script>
