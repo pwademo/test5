@@ -13,9 +13,11 @@
     #wrapper {   
       top:0;
       left:0;
-    /*  width:640px;  */
-/**/       width:100vw;  
-      height:100vh;  
+
+      width:640px;
+    /*    */
+/*       width:100vw;  
+      height:100vh;  */
       margin: 0 0;
       position: relative;
       overflow: hidden;     
@@ -47,7 +49,7 @@
 
     #canvas {
        width: 100%;    
-       border:solid red 3px;
+       border:solid blue 3px;
     }
 
     #output {
@@ -85,7 +87,7 @@
     <br/>
    <button id="scanstart">Scan start</button>
    <button id="scanstop" hidden>Scan stop</button>
-   <input type="range" name="inputRangeRectWidth" min="50" value="200" max="640" id="inputRangeRectWidth">
+   <input type="range" name="inputRangeRectWidth" min="50" value="200" max="640" id="inputRangeRectWidth" hidden>
 </div>
 
   <script>
@@ -236,8 +238,9 @@ document.addEventListener('readystatechange', function(event) {
         });
         videoElem.srcObject = null;
         scanstop.hidden=true;
+        inputRangeRectWidth.hidden=true;
         scanstart.hidden=false;        
-        
+        window.cancelAnimationFrame(myReq);
         setTimeout(() => canvasElement.hidden = true, delaymillisec)//vent x millisekunder og skjul derefter cancas         
     }
  
@@ -253,7 +256,9 @@ document.addEventListener('readystatechange', function(event) {
                     myReq = window.requestAnimationFrame(tick);
 
                     scanstart.hidden=true;
-                    scanstop.hidden=false;}
+                    scanstop.hidden=false;
+                  inputRangeRectWidth.hidden=false;
+                  }
         );
     }
 
@@ -265,7 +270,7 @@ document.addEventListener('readystatechange', function(event) {
     scanstop.addEventListener("click",(e)=>{
           e.preventDefault();
           stopStreamedVideo(video);
-          window.cancelAnimationFrame(myReq);
+        //  window.cancelAnimationFrame(myReq);
     });
 
 
