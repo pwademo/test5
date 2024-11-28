@@ -5,7 +5,10 @@
   <title>jsQR Demo</title>
 
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <script src="/dist/tesseract.min.js"></script>
+  <script src="/dist/worker.min.js"></script>
 
+  
   <style>
   body {
       font-family:Arial, Helvetica, sans-serif;
@@ -21,6 +24,7 @@
       margin: 0 0;
       position: relative;
       overflow: hidden;     
+      z-index: 0;
     } 
 
     #scanstart{
@@ -38,6 +42,7 @@
       position: absolute;
       top: 50;
       left:10;
+      z-index: 10;
     }
 
     #loadingMessage {
@@ -104,12 +109,74 @@
     const inputRangeRectWidth=document.getElementById("inputRangeRectWidth");
     let rectWidth=0;
     let rectHeight=0;
+    let rectWidthHeightRadio=5;
 
-
+    let worker;
     
+async function initWorker(){
+  
+      // A worker is created once and used every time a user uploads a new file.  
+       worker =await Tesseract.createWorker("eng", 1, {
+                    // corePath: '/tesseract-core-simd.wasm.js',
+                    workerPath: "/dist/worker.min.js",
+                    load_system_dawg: false,
+                    load_freq_dawg: false});
+
+
+                await worker.setParameters({
+                  //tessedit_char_whitelist: '0123456789"',
+                  tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"',
+                });
+}
+
+
+
+
+initWorker();
+
+
+
+
 
 
       let myReq;
+
+
+
+
+function tjekUFI(val) {
+
+// var ufino = val.trim();
+var ufino = val;
+//var pattern = /^([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})$/;
+
+
+var pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
+let _ufi = ufino.match(pattern);
+//console.log("_ufi:", _ufi);
+if (_ufi == null) return false;
+    
+//Nået hertil ved vi at pattern er true
+
+//Fjern alle bindestreger
+var re2 = new RegExp('-', 'g');
+var _ufino = _ufi[0].replace(re2, '');
+
+//console.log("UFI no hypen:", _ufino);
+
+//Dette er de lovlige charakterer der kan være i et UFI nummer
+var repr = "0123456789ACDEFGHJKMNPQRSTUVWXY";
+
+var _sum = 0;
+
+for (var i = 0; i < _ufino.length; i++) {
+    var reprChar = _ufino[i];//Char på plads nr. i
+    var ui = repr.indexOf(reprChar);//index og dermed værdien af Char på plads nr. i
+    _sum += (i + 1) * ui;
+}
+return _sum % 31 === 0;
+
+}
 
 /**/    
 
@@ -117,7 +184,7 @@ document.addEventListener('readystatechange', function(event) {
     if (document.readyState === "complete") {
           rectWidth=localStorage.getItem("rectWidth")|| 200;
           rectWidth=rectWidth*1;//sikre at det er et tal!
-          rectHeight=rectWidth; 
+          rectHeight=rectWidth/rectWidthHeightRadio; 
           inputRangeRectWidth.value=rectWidth;         
     }
 
@@ -148,19 +215,59 @@ document.addEventListener('readystatechange', function(event) {
       //laver en puls på rectanklen
       const d = new Date();
       let seconds = d.getSeconds();
+      //pulse får rect til at pulsere ved at størrelsen på rect ændres - den pulserer
       let pulse=Math.floor(seconds%2)*5 ;
       //console.log("PULS",pulse);
 
       canvas.beginPath();
-      canvas.rect((canvasElement.width-rectWidth)/2-pulse, (canvasElement.height-rectHeight)/2-pulse,rectWidth+pulse*2, rectHeight+pulse*2);
+      //canvas.rect((canvasElement.width-rectWidth)/2-pulse, (canvasElement.height-rectHeight)/2-pulse,rectWidth+pulse*2, rectHeight+pulse*2);
+     
+      let x0=(canvasElement.width-rectWidth)/2-pulse;
+      let y0=(canvasElement.height-rectHeight)/2-pulse;
+      let h=rectWidth+pulse*2;
+      let w=rectHeight+pulse*2;
+      canvas.rect(x0,y0,h,w);
       canvas.strokeStyle = color;
       canvas.stroke();  
     }
 
 
-    //denn funktion kaldes via windows.requestAnimationFrame
-    function tick(timestamp) {      
+    /*Wrap jsQR in promise make it posible to run as async/await */
+var jsQRpromise = function (myimg) {
+  return new Promise(function (resolve) {
 
+
+    var code = jsQR(myimg.data, myimg.width, myimg.height, {
+      inversionAttempts: "dontInvert", 
+    });
+
+    if(code){
+      console.log("Found QR");
+      console.log(code.data);
+    }
+
+    resolve(code);
+
+
+  });
+};
+    
+function imgDataToImage(imagedata) {
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    canvas.width = imagedata.width;
+    canvas.height = imagedata.height;
+    ctx.putImageData(imagedata, 0, 0);
+
+    var image = new Image();
+    image.src = canvas.toDataURL();
+    return image;
+}
+
+
+    //denn funktion kaldes via windows.requestAnimationFrame
+    async function tick(timestamp) {      
+      
       //console.log(timestamp);
       loadingMessage.innerText = "⌛ Loading video..."
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
@@ -173,31 +280,46 @@ document.addEventListener('readystatechange', function(event) {
         canvasElement.height = video.videoHeight;
         canvasElement.width = video.videoWidth;
 
-     canvas.drawImage(video, 0, 0, canvasElement.width*1, canvasElement.height*1);
-        //  canvas.drawImage(video, 0, 0, canvasElement.width*1.5, canvasElement.height*1.5);
-       //canvas.drawImage(video, 0, 0, canvasElement.width*2.5, canvasElement.height*2.5);
- 
-        var imageData = canvas.getImageData((canvasElement.width-rectWidth)/2, (canvasElement.height-rectHeight)/2,rectWidth, rectHeight);
-        //var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
-        var code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: "dontInvert", 
-        });
+      canvas.drawImage(video, 0, 0, canvasElement.width*1, canvasElement.height*1);
 
-       // console.log("LEFT",canvasElement.width);
-/*         scanstop.style.left=(canvasElement.width-rectWidth)/2;
-        scanstop.style.top=(canvasElement.height-rectHeight)/2; */
+        //Dette billede er i firekanten på canvas
+        var imageData = canvas.getImageData((canvasElement.width-rectWidth)/2, (canvasElement.height-rectHeight)/2,rectWidth, rectHeight);
         
-        if (code) {
-          beep1();
-          drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
-          drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
-          drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
-          drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+      let code;
+       // let code=await jsQRpromise(imageData);
+
+//console.log(imageData);
+        //let QQ123=await worker.recognize(canvasElement);
+        let _tmpimg=imgDataToImage(imageData);
+        const { data: { text } } = await worker.recognize(_tmpimg);
+
+
+           // const regex = /[0-9]/gi;
+           // const regex = /[0-9A-HJKMNP-Y]{4}/gi;
+            const regex = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
+            let code2 = text && text.match(regex) && text.match(regex).filter(x => x).join("");
+            console.log({text, code2});
+
+            drawRect("red");  
+
+
+        if(code2){
           
-          /* streger mellem qr-kodens 'øje pletter' */
-/*        drawLine(code.location.topLeftFinderPattern, code.location.topRightFinderPattern, "blue");
-          drawLine(code.location.topLeftFinderPattern, code.location.bottomLeftFinderPattern, "blue");
-          drawLine(code.location.bottomRightAlignmentPattern, code.location.bottomLeftFinderPattern, "blue"); */
+            outputMessage.hidden = true;
+            outputData.parentElement.hidden = false;
+            outputData.innerText = code2;
+
+            //stopStreamedVideo(video,4000);//stopper med delay på 4000 millisek
+
+          }  
+        else if (code) {
+          beep1();
+
+          //tegn en grøn firkant omkring QR code
+          //drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
+          //drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
+          //drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
+          //drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58"); 
 
           drawRect("green");
           outputMessage.hidden = true;
@@ -207,8 +329,7 @@ document.addEventListener('readystatechange', function(event) {
           stopStreamedVideo(video,4000);//stopper med delay på 4000 millisek
 
         } else {
-          drawRect("red");
-          
+          drawRect("red");         
 
           outputMessage.hidden = false;
           outputData.parentElement.hidden = true; 
@@ -243,7 +364,41 @@ document.addEventListener('readystatechange', function(event) {
         window.cancelAnimationFrame(myReq);
         setTimeout(() => canvasElement.hidden = true, delaymillisec)//vent x millisekunder og skjul derefter cancas         
     }
- 
+    
+    
+    
+     function startScanner(){
+
+loadingMessage.hidden = false;
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+  .then(async function(stream) {
+              video.srcObject = stream;
+              video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
+              video.play();
+          
+              
+                    await worker.load();
+                    await worker.loadLanguage("eng");
+                    await worker.initialize("eng");
+
+
+
+                myReq =await window.requestAnimationFrame(tick);           
+              
+
+              scanstart.hidden=true;
+              scanstop.hidden=false;
+              inputRangeRectWidth.hidden=false;
+
+
+
+
+            }
+  );
+}
+
+/*
     function startScanner(){
 
       loadingMessage.hidden = false;
@@ -253,7 +408,11 @@ document.addEventListener('readystatechange', function(event) {
                     video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
                     video.play();
 
-                    myReq = window.requestAnimationFrame(tick);
+
+                
+                      myReq = window.requestAnimationFrame(tick);
+                    
+                    
 
                     scanstart.hidden=true;
                     scanstop.hidden=false;
@@ -261,6 +420,18 @@ document.addEventListener('readystatechange', function(event) {
                   }
         );
     }
+        */
+
+function getUfiFromString(text) {
+var pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
+let _ufisInString = text.match(pattern);
+if (_ufisInString == null) return null;
+return _ufisInString[0];//firs ufi match
+}
+
+
+
+
 
     scanstart.addEventListener("click",(e)=>{
           e.preventDefault();
@@ -278,7 +449,7 @@ document.addEventListener('readystatechange', function(event) {
 
     inputRangeRectWidth.addEventListener("input",(e)=>{
       rectWidth=Math.floor(e.target.value);
-      rectHeight=Math.floor(e.target.value);
+      rectHeight=Math.floor(e.target.value/rectWidthHeightRadio);
       localStorage.setItem("rectWidth",rectWidth);
        console.log(rectWidth);
     })
