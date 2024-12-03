@@ -89,7 +89,7 @@
       <div hidden><b>UFI:</b> <span id="outputData"></span></div>
     </div>
     <canvas id="canvasElement"></canvas>
-    <canvas id="canvasFrame"></canvas>
+    <canvas id="canvasFrame" ></canvas>
     <div id="regExFound"></div>
 
 
@@ -139,16 +139,13 @@
       They can be disabled by setting both of the configuration variables load_system_dawg and load_freq_dawg to false.
       */
       worker = await Tesseract.createWorker("eng", 1, {
-        // corePath: '/tesseract-core-simd.wasm.js',
-        //workerPath: "./dist/worker.min.js",
-        //workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
         workerPath: "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/worker.min.js",
         load_system_dawg: false,
         load_freq_dawg: false
       });
 
       await worker.setParameters({
-        tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"',
+        tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"',//valid chars in a UFI Code
       });
     }
 
@@ -265,38 +262,55 @@
           outputContainer.hidden = false;
 
 
-          let vw = video.videoWidth;//width of raw source video
+
+          const zoom=1;
+
+
+          let vw = video.videoWidth; //width of raw source video
           let vh = video.videoHeight;
-          let sx = vw / 4;
-          let sy = vw / 4;
-          let sWidth = vw / 2;
-          let sHeight = vw / 2;
+          
+          //
+          const rect0 = { left: 0, top: 0, width: 1, height: 1 };//tal er procent af video width/height
+          
+          const rect1 = { left: 0.30, top: 0.47, width: 0.4, height: 0.06 };//tal er procent af video width/height
 
-          canvasElement.height = vh;
-          canvasElement.width = vw;
+          
+          let cl = vw*rect0.left;
+          let ct = vh*rect0.top;
+          let cw = vw*rect0.width;
+          let ch = vh*rect0.height;   
 
-          rectLeft = 0;
-          rectTop = 0;
+          canvasElement.width =cw*zoom;
+          canvasElement.height =ch*zoom;          
+          
+          //hele denne video tegnes som billede på canvas 
+          canvasCtx.drawImage(video, cl, ct, cw, ch, 0, 0, cw*zoom, ch*zoom);
 
 
-          //hele denne video-frame tegnes som billede på canvas 
-          canvasCtx.drawImage(video, 0, 0, vw, vh);
-
-
-          const rectangle = { left: 100, top: 300, width: 150, height: 25 };
           //der tegnes en firkant på canvas
+          let fl = cw*rect1.left;
+          let ft = ch*rect1.top;
+          let fw = cw*rect1.width;
+          let fh = ch*rect1.height;
+      
           canvasCtx.beginPath();
-          canvasCtx.rect(rectangle.left, rectangle.top, rectangle.width, rectangle.height);
+          canvasCtx.rect(fl,ft,fw,fh);
           canvasCtx.strokeStyle = "red";
           canvasCtx.stroke();
+          canvasCtx.beginPath();
+
+    
+          
 
 
           //Tesseract kan læse fra File-object, Blob-object, img-element or canvas-element
           //I stedet for at "klippe" rectangle ud af canvasElement, så skrives direkte til en ny canvasFrame
-          canvasFrame.height = rectangle.height;
-          canvasFrame.width = rectangle.width;
-          canvasFrameCtx.drawImage(video, rectangle.left, rectangle.top, rectangle.width, rectangle.height, 0, 0, rectangle.width, rectangle.height);
-
+          
+          canvasFrame.width = fw*zoom;
+          canvasFrame.height = fh*zoom;
+          
+          canvasFrameCtx.drawImage(video,fl,ft,fw,fh,0,0,fw*zoom,fh*zoom);
+          
 
           let code;
 
