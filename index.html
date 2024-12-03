@@ -90,6 +90,7 @@
     </div>
     <canvas id="canvasElement"></canvas>
     <canvas id="canvasFrame"></canvas>
+    <div id="regExFound"></div>
 
 
 
@@ -113,6 +114,8 @@
     const outputData = document.getElementById("outputData");
     const scanstart = document.getElementById("scanstart");
     const scanstop = document.getElementById("scanstop");
+    const regExFound = document.getElementById("regExFound");
+    
 
     let scanningStarted=false;
     
@@ -316,6 +319,7 @@
             //outputMessage.hidden = true;
             //outputData.parentElement.hidden = false;
             //outputData.innerText = code2;
+            regExFound.innerText+="\n" + code2;
             if (await tjekUFIpromise(code2)) {
               outputData.parentElement.hidden = false;
               outputData.innerText = code2;
@@ -343,13 +347,11 @@
 
         }//end video.HAVE_ENOUGH_DATA
         else {
-          //gentag requestAnimationFrame indtil video.HAVE_ENOUGH_DATA
+          //NOT HAVE_ENOUGH_DATA
+          //repeat requestAnimationFrame until video.HAVE_ENOUGH_DATA
           //console.log("NOT HAVE_ENOUGH_DATA", timestamp);
           myReq = window.requestAnimationFrame(tick);
         }
-
-
-
         }
 
 
@@ -382,6 +384,7 @@
         scanningStarted=true;
         loadingMessage.hidden = false;
         outputData.innerText = "";
+        regExFound.innerText = "";
 
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } })
           .then(async function (stream) {
