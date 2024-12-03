@@ -5,11 +5,13 @@
   <title>UFI scanner Demo</title>
 
   <!-- <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script> -->
-  <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+  <!-- <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script> -->
+  <script src=' https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js'></script>
+ 
   <!-- <script src="./dist/tesseract.min.js"></script>
   <script src="./dist/worker.min.js"></script> -->
 
-  
+
   <style>
     body {
       font-family: Arial, Helvetica, sans-serif;
@@ -19,7 +21,7 @@
       top: 0;
       left: 0;
 
-      width: 250px;
+      width: 640px;
       margin: 0 0;
       position: relative;
       overflow: hidden;
@@ -47,12 +49,8 @@
       background-color: #eee;
     }
 
-    #canvas {
-      max-width: 250px;
-      max-height: 250px;
-      width: 100%;     
-      height: 100%;
-    }
+
+    #canvas {}
 
 
 
@@ -80,7 +78,7 @@
 <body>
   <div>
     <button id="scanstart">Scan start</button>
-    <button id="scanstop" hidden>Scan stop</button>to 
+    <button id="scanstop" hidden>Scan stop</button>to
   </div>
 
 
@@ -88,15 +86,16 @@
     <div id="loadingMessage" hidden>🎥 Unable access video stream (please make sure you have a webcam enabled)</div>
     <div id="output" hidden>
       <div id="outputMessage" style="height: 100px;">No UFI code detected.</div>
-      <div hidden><b>Data:</b> <span id="outputData"></span></div>
+      <div hidden><b>UFI:</b> <span id="outputData"></span></div>
     </div>
-    <canvas id="canvas" ></canvas>
- 
+    <canvas id="canvasElement"></canvas>
+    <canvas id="canvasFrame"></canvas>
+
 
 
     <br />
 
-    
+
   </div>
 
 
@@ -104,26 +103,31 @@
   <script>
     /* #region scanner */
     const video = document.createElement("video");
-    const canvasElement = document.getElementById("canvas");
-    const canvas = canvasElement.getContext("2d");
+    const canvasElement = document.getElementById("canvasElement");
+    const canvasCtx = canvasElement.getContext("2d");
+    const canvasFrame = document.getElementById("canvasFrame");
+    const canvasFrameCtx = canvasFrame.getContext("2d");
     const loadingMessage = document.getElementById("loadingMessage");
     const outputContainer = document.getElementById("output");
     const outputMessage = document.getElementById("outputMessage");
     const outputData = document.getElementById("outputData");
     const scanstart = document.getElementById("scanstart");
     const scanstop = document.getElementById("scanstop");
-  
+
+    let scanningStarted=false;
+    
+
 
     //the rect ind video where code is read
     let rectWidth = 200;
     let rectHeight = 30;
-    
+
 
     let worker;
 
     async function initWorker() {
 
-      
+
       /*
       A worker is created once and used every time a user uploads a new file.  
 
@@ -134,7 +138,8 @@
       worker = await Tesseract.createWorker("eng", 1, {
         // corePath: '/tesseract-core-simd.wasm.js',
         //workerPath: "./dist/worker.min.js",
-        workerPath:"https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
+        //workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
+        workerPath: "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/worker.min.js",
         load_system_dawg: false,
         load_freq_dawg: false
       });
@@ -154,7 +159,21 @@
 
     let myReq;
 
+    var tjekUFIpromise = function (val) {
+        return new Promise(function (resolve) {
 
+
+          if (tjekUFI(val)) {
+            console.log("Valid UFI", val)
+            resolve(true);
+          } else {
+            resolve(false);
+            console.log("Invalid UFI", val)
+
+          }
+          
+        });
+      };
 
 
     function tjekUFI(val) {
@@ -164,7 +183,7 @@
       //var pattern = /^([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})$/;
 
 
-      let  pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
+      let pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
       let _ufi = ufino.match(pattern);
       //console.log("_ufi:", _ufi);
       if (_ufi == null) return false;
@@ -197,7 +216,7 @@
       if (document.readyState === "complete") {
 
 
-        
+
       }
 
 
@@ -215,7 +234,7 @@
           resolve(code);
         });
       };
-      
+
 
       //Convert from imagedata to Image
       function imgDataToImage(imagedata) {
@@ -234,122 +253,124 @@
       //denn funktion kaldes via windows.requestAnimationFrame
       async function tick(timestamp) {
 
-        loadingMessage.innerText = "⌛ Loading video..."
+        if(scanningStarted==true){
+          loadingMessage.innerText = "⌛ Loading video..."
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
 
           loadingMessage.hidden = true;
           canvasElement.hidden = false;
           outputContainer.hidden = false;
 
-          canvasElement.height = video.videoHeight;
-          canvasElement.width = video.videoWidth;
-          rectLeft=(canvasElement.width - rectWidth) / 2;
-          rectTop=(canvasElement.height - rectHeight) / 2;
-          
+
+          let vw = video.videoWidth;//width of raw source video
+          let vh = video.videoHeight;
+          let sx = vw / 4;
+          let sy = vw / 4;
+          let sWidth = vw / 2;
+          let sHeight = vw / 2;
+
+          canvasElement.height = vh;
+          canvasElement.width = vw;
+
+          rectLeft = 0;
+          rectTop = 0;
+
 
           //hele denne video-frame tegnes som billede på canvas 
-          canvas.drawImage(video, 0, 0, canvasElement.width * 1, canvasElement.height * 1);
-       
-
-          const rectangle = { left:rectLeft, top:rectTop, rectWidth, height:rectHeight };
-          // var tempCanvas = document.createElement('canvas');
-          // tempCanvas.width = rectangle.width;
-          // tempCanvas.height = rectangle.height;
-          // var tempcontext = tempCanvas.getContext('2d');
-          // tempcontext.drawImage(canvasElement, -rectangle.left, -rectangle.top);
+          canvasCtx.drawImage(video, 0, 0, vw, vh);
 
 
-
-
+          const rectangle = { left: 100, top: 300, width: 150, height: 25 };
           //der tegnes en firkant på canvas
-          canvas.beginPath();          
-          //canvas.rect((canvasElement.width - rectWidth) / 2, (canvasElement.height - rectHeight) / 2, rectHeight);//rect(x,y,w,h)          
-       
-          canvas.rect(rectLeft,rectTop, rectWidth,rectHeight);
-          
+          canvasCtx.beginPath();
+          canvasCtx.rect(rectangle.left, rectangle.top, rectangle.width, rectangle.height);
+          canvasCtx.strokeStyle = "red";
+          canvasCtx.stroke();
 
-          canvas.strokeStyle = "red";
-          canvas.stroke();  
 
-          
+          //Tesseract kan læse fra File-object, Blob-object, img-element or canvas-element
+          //I stedet for at "klippe" rectangle ud af canvasElement, så skrives direkte til en ny canvasFrame
+          canvasFrame.height = rectangle.height;
+          canvasFrame.width = rectangle.width;
+          canvasFrameCtx.drawImage(video, rectangle.left, rectangle.top, rectangle.width, rectangle.height, 0, 0, rectangle.width, rectangle.height);
 
-          //Dette billede er i firekanten på canvas
-          //getImageData(sx, sy, sw, sh) or getImageData(sx, sy, sw, sh, settings)
-          var imageData = canvas.getImageData((canvasElement.width - rectWidth) / 2, (canvasElement.height - rectHeight) / 2, rectWidth, rectHeight);
-          
-          
+
           let code;
-          // let code=await jsQRpromise(imageData);
 
-          //console.log(imageData);
-          //let QQ123=await worker.recognize(canvasElement);
-          let _tmpimg = imgDataToImage(imageData);
-          const { data: { text } } = await worker.recognize(_tmpimg);
+          const { data: { text } } = await worker.recognize(canvasFrame);
+          //let result=await worker.recognize(canvasFrame);
           //const { data: { text } } = await worker.recognize(_tmpimg, { rotateAuto: true }, { imageColor: true, imageGrey: true, imageBinary: true });
-      
-          //const { data: { text } } = await worker.recognize(canvasElement,rectangle);
 
-          outputMessage.innerText =text;
+
+
+         // outputMessage.innerText = text;
 
           // const regex = /[0-9]/gi;    
           const regex = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
           let code2 = text && text.match(regex) && text.match(regex).filter(x => x).join("");
-          console.log({ text, code2 });
+          //console.log({ text, code2 });
+
+
           if (code2) {
 
-            outputMessage.hidden = true;
-            outputData.parentElement.hidden = false;
-            outputData.innerText = code2;
-
-
-            if(tjekUFI(code2)){
-              outputData.style.backgroundColor="lightgreen";
-              stopStreamedVideo(video,4000);//stopper med delay på 4000 millisek
+            //outputMessage.hidden = true;
+            //outputData.parentElement.hidden = false;
+            //outputData.innerText = code2;
+            if (await tjekUFIpromise(code2)) {
+              outputData.parentElement.hidden = false;
+              outputData.innerText = code2;
+              outputData.style.backgroundColor = "lightgreen";
+             // stopStreamedVideo(video, 4000);//stopper med delay på 4000 millisek
+              stopStreamedVideo(video);
+              console.log({ text, code2 });
+              //console.log(result);
             }
             else {
               //outputData.style.backgroundColor="yellow";
+              console.log("NOT UFI tjek Match", timestamp);
               myReq = window.requestAnimationFrame(tick);
             }
 
 
-           
-
           }
-          else if (code) {
-           
-            outputMessage.hidden = true;
-            outputData.parentElement.hidden = false;
-            outputData.innerText = code.data;
+          else {
 
-            stopStreamedVideo(video, 4000);//stopper med delay på 4000 millisek
-
-          } else {          
-
-            outputMessage.hidden = false;
-            outputData.parentElement.hidden = true;
+            //outputMessage.hidden = false;
+            //outputData.parentElement.hidden = true;
+            //console.log("NOT RegEx tjek Match", timestamp);
             myReq = window.requestAnimationFrame(tick);
           }
+
         }//end video.HAVE_ENOUGH_DATA
         else {
           //gentag requestAnimationFrame indtil video.HAVE_ENOUGH_DATA
-          console.log("NOT HAVE_ENOUGH_DATA", timestamp);
+          //console.log("NOT HAVE_ENOUGH_DATA", timestamp);
           myReq = window.requestAnimationFrame(tick);
         }
+
+
+
+        }
+
 
       }
 
 
       function stopStreamedVideo(videoElem, delaymillisec = 0) {
-
+        scanningStarted=false;
         const stream = videoElem.srcObject;
         const tracks = stream.getTracks();
 
         tracks.forEach(function (track) {
           track.stop();
         });
+
+
+        window.cancelAnimationFrame(myReq);
+
         videoElem.srcObject = null;
         scanstop.hidden = true;
-       
+
         scanstart.hidden = false;
         window.cancelAnimationFrame(myReq);
         setTimeout(() => canvasElement.hidden = true, delaymillisec)//vent x millisekunder og skjul derefter cancas         
@@ -358,12 +379,13 @@
 
 
       function startScanner() {
-
+        scanningStarted=true;
         loadingMessage.hidden = false;
+        outputData.innerText = "";
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" },width: { ideal: 1280 },height: { ideal: 720 }  })
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } })
           .then(async function (stream) {
-            video.srcObject = stream;            
+            video.srcObject = stream;
             video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
             video.play();
 
@@ -374,19 +396,14 @@
 
             myReq = await window.requestAnimationFrame(tick);
 
-
             scanstart.hidden = true;
             scanstop.hidden = false;
-         
-
-
-
 
           }
           );
       }
 
-     
+
 
       function getUfiFromString(text) {
         var pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
