@@ -21,7 +21,7 @@
       top: 0;
       left: 0;
 
-      width: 640px;
+      /* width: 640px; */
       margin: 0 0;
       position: relative;
       overflow: hidden;
@@ -88,8 +88,10 @@
       <div id="outputMessage" style="height: 100px;">No UFI code detected.</div>
       <div hidden><b>UFI:</b> <span id="outputData"></span></div>
     </div>
-    <canvas id="canvasElement"></canvas>
-    <canvas id="canvasFrame" ></canvas>
+    <div><canvas id="canvasElement"></canvas></div>
+    
+    <div><canvas id="canvasFrame" ></canvas></div>
+    
     <div id="regExFound"></div>
 
 
@@ -263,16 +265,16 @@
 
 
 
-          const zoom=1;
+          const zoom=1.5;
 
 
           let vw = video.videoWidth; //width of raw source video
           let vh = video.videoHeight;
           
           //
-          const rect0 = { left: 0, top: 0, width: 1, height: 1 };//tal er procent af video width/height
+          const rect0 = { left: 0.2, top: 0.3, width: 0.6, height: 0.4 };//tal er procent af video width/height
           
-          const rect1 = { left: 0.30, top: 0.47, width: 0.4, height: 0.06 };//tal er procent af video width/height
+          const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.1};//tal er procent af video width/height
 
           
           let cl = vw*rect0.left;
@@ -294,7 +296,7 @@
           let fh = ch*rect1.height;
       
           canvasCtx.beginPath();
-          canvasCtx.rect(fl,ft,fw,fh);
+          canvasCtx.rect(fl*zoom,ft*zoom,fw*zoom,fh*zoom);
           canvasCtx.strokeStyle = "red";
           canvasCtx.stroke();
           canvasCtx.beginPath();
@@ -309,7 +311,7 @@
           canvasFrame.width = fw*zoom;
           canvasFrame.height = fh*zoom;
           
-          canvasFrameCtx.drawImage(video,fl,ft,fw,fh,0,0,fw*zoom,fh*zoom);
+          canvasFrameCtx.drawImage(video,fl+cl,ft+ct,fw,fh,0,0,fw*zoom,fh*zoom);
           
 
           let code;
