@@ -436,10 +436,11 @@
             function onCapabilitiesReady(capabilities) {
               //console.log(capabilities);
               if (capabilities.zoom) {
-                track.applyConstraints({
-                  advanced: [{zoom: capabilities.zoom.max}]
-                })
-                .catch(e => console.log(e));
+                alert(capabilities.zoom.max)
+                // track.applyConstraints({
+                //   advanced: [{zoom: capabilities.zoom.max}]
+                // })
+                // .catch(e => console.log(e));
               }
               if (capabilities.torch) {
                 track.applyConstraints({
