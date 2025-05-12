@@ -95,8 +95,8 @@
     <div><canvas id="canvasElement"></canvas></div>
 
     <div><canvas id="canvasFrame"></canvas></div>
-<button id="torchon" >Torch on</button>
-<button id="torchoff" >Torch off</button>
+<button id="torchon" hidden>Torch on</button>
+<button id="torchoff" hidden>Torch off</button>
     <div id="regExFound"></div>
 
 
@@ -460,7 +460,8 @@
               }
 
               if (capabilities.torch) {
-
+torchon.hidden = false;
+torchoff.hidden = false;
 
                 torchon.addEventListener("click", (e) => {
                   e.preventDefault();
