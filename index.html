@@ -281,7 +281,7 @@
             const rect0 = { left: 0.4, top: 0.3, width: 0.7, height: 0.4 };//tal er procent af video width/height
 
             //const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.1 };//tal er procent af video width/height
-            const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.3 };//tal er procent af video width/height
+            const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.2 };//tal er procent af video width/height
 
 
             let cl = vw * rect0.left;
@@ -314,11 +314,11 @@
 
             //Tesseract kan læse fra File-object, Blob-object, img-element or canvas-element
             //I stedet for at "klippe" rectangle ud af canvasElement, så skrives direkte til en ny canvasFrame
+            const canvasFrameZoom=2;
+            canvasFrame.width = fw * zoom*canvasFrameZoom;
+            canvasFrame.height = fh * zoom*canvasFrameZoom;
 
-            canvasFrame.width = fw * zoom;
-            canvasFrame.height = fh * zoom;
-
-            canvasFrameCtx.drawImage(video, fl + cl, ft + ct, fw, fh, 0, 0, fw * zoom, fh * zoom);
+            canvasFrameCtx.drawImage(video, fl + cl, ft + ct, fw, fh, 0, 0, fw * zoom*canvasFrameZoom, fh * zoom*canvasFrameZoom);
 
 
             let code;
