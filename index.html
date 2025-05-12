@@ -95,7 +95,8 @@
     <div><canvas id="canvasElement"></canvas></div>
 
     <div><canvas id="canvasFrame"></canvas></div>
-<button id="torch" >Torch</button>
+<button id="torchon" >Torch on</button>
+<button id="torchoff" >Torch off</button>
     <div id="regExFound"></div>
 
 
@@ -125,7 +126,8 @@
     const regExFound = document.getElementById("regExFound");
 
     const debugdiv=document.getElementById("debugdiv")
-   const torch = document.getElementById("torch");
+   const torchon = document.getElementById("torchon");
+   const torchoff = document.getElementById("torchoff");
 
     let scanningStarted = false;
 
@@ -460,10 +462,17 @@
               if (capabilities.torch) {
 
 
-                torch.addEventListener("click", (e) => {
+                torchon.addEventListener("click", (e) => {
                   e.preventDefault();
                   track.applyConstraints({
                     advanced: [{ torch: true }]
+                  })
+                    .catch(e => console.log(e));
+                });
+               torchoff.addEventListener("click", (e) => {
+                  e.preventDefault();
+                  track.applyConstraints({
+                    advanced: [{ torch: false }]
                   })
                     .catch(e => console.log(e));
                 });
