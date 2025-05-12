@@ -67,6 +67,8 @@
       word-wrap: break-word;
     }
 
+
+
     #noQRFound {
       text-align: center;
     }
@@ -100,7 +102,9 @@
 
 
   </div>
+<div id="debug">
 
+</div>
 
 
   <script>
@@ -117,6 +121,8 @@
     const scanstart = document.getElementById("scanstart");
     const scanstop = document.getElementById("scanstop");
     const regExFound = document.getElementById("regExFound");
+
+    const debug=document.getElementById("debug")
 
 
     let scanningStarted = false;
@@ -436,11 +442,13 @@
             function onCapabilitiesReady(capabilities) {
               //console.log(capabilities);
               if (capabilities.zoom) {
-                alert(capabilities.zoom.max)
-                // track.applyConstraints({
-                //   advanced: [{zoom: capabilities.zoom.max}]
-                // })
-                // .catch(e => console.log(e));
+                debug.innerText+="capabilities.zoom.max:" + capabilities.zoom.max + "<br/>"
+                
+                track.applyConstraints({
+                 // advanced: [{zoom: capabilities.zoom.max}]
+                 advanced: [{zoom: 2}]
+                })
+                .catch(e => console.log(e));
               }
               if (capabilities.torch) {
                 track.applyConstraints({
