@@ -271,8 +271,8 @@
 
 
 
-            const zoom = 1.5;
-
+            //const zoom = 1.5;
+            const zoom = 1;
 
             let vw = video.videoWidth; //width of raw source video
             let vh = video.videoHeight;
@@ -421,9 +421,9 @@
             video.play();
 
 
-            await worker.load();
-            await worker.loadLanguage("eng");
-            await worker.initialize("eng");
+            // await worker.load();
+            // await worker.loadLanguage("eng");
+            // await worker.initialize("eng");
 
             myReq = await window.requestAnimationFrame(tick);
 
@@ -446,7 +446,7 @@
                 
                 track.applyConstraints({
                  // advanced: [{zoom: capabilities.zoom.max}]
-                 advanced: [{zoom: 2}]
+                 advanced: [{zoom: 1.5}]
                 })
                 .catch(e => console.log(e));
               }
