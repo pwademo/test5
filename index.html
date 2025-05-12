@@ -102,7 +102,7 @@
 
 
   </div>
-<div id="debug">
+<div id="debugdiv">
 
 </div>
 
@@ -122,7 +122,7 @@
     const scanstop = document.getElementById("scanstop");
     const regExFound = document.getElementById("regExFound");
 
-    const debug=document.getElementById("debug")
+    const debugdiv=document.getElementById("debugdiv")
 
 
     let scanningStarted = false;
@@ -442,7 +442,7 @@
             function onCapabilitiesReady(capabilities) {
               //console.log(capabilities);
               if (capabilities.zoom) {
-                debug.innerText+="capabilities.zoom.max:" + capabilities.zoom.max + "<br/>"
+                debugdiv.innerHTML+=  "<br/>zoom.max:" + capabilities.zoom.max 
                 
                 track.applyConstraints({
                  // advanced: [{zoom: capabilities.zoom.max}]
@@ -455,6 +455,13 @@
                   advanced: [{torch: true}]
                 })
                 .catch(e => console.log(e));
+              }
+              if (capabilities.focusMode) {
+                debugdiv.innerHTML+= "<br/>focusMode: true"
+
+              }
+              else {
+                debugdiv.innerHTML+= "<br/>focusMode: false"
               }
 
             }
