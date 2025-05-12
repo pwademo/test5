@@ -81,6 +81,8 @@
   <div>
     <button id="scanstart">Scan start</button>
     <button id="scanstop" hidden>Scan stop</button>to
+
+    <button id="torch" hidden>Torch</button>
   </div>
 
 
@@ -123,7 +125,7 @@
     const regExFound = document.getElementById("regExFound");
 
     const debugdiv=document.getElementById("debugdiv")
-
+   const torch = document.getElementById("torch");
 
     let scanningStarted = false;
 
@@ -414,7 +416,7 @@
             video: { facingMode: "environment" },
             width: { ideal: 1280 },
             height: { ideal: 720 },
-            //advanced:[{torch:true}]
+          
           })
           .then(async function (stream) {
             video.srcObject = stream;
@@ -456,10 +458,16 @@
               }
 
               if (capabilities.torch) {
-                track.applyConstraints({
-                  advanced: [{torch: true}]
-                })
-                .catch(e => console.log(e));
+
+
+                torch.addEventListener("click", (e) => {
+                  e.preventDefault();
+                  track.applyConstraints({
+                    advanced: [{ torch: true }]
+                  })
+                    .catch(e => console.log(e));
+                });
+                      
               }              
               else {
                 debugdiv.innerHTML+= "<br/>torch: false"
