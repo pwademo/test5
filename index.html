@@ -80,7 +80,7 @@
 <body>    
   <div>
     <button id="scanstart">Scan start</button>
-    <button id="scanstop" hidden>Scan stop</button>to
+    <button id="scanstop" hidden>Scan stop</button>to0000
 
 
   </div>
@@ -139,6 +139,7 @@
 
 
     let worker;
+    
 
     async function initWorker() {
 
@@ -151,13 +152,29 @@
       They can be disabled by setting both of the configuration variables load_system_dawg and load_freq_dawg to false.
       */
       worker = await Tesseract.createWorker("eng", 1, {
-        workerPath: "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/worker.min.js",
+        workerPath: "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/6.0.0/worker.min.js",
         load_system_dawg: false,
         load_freq_dawg: false
       });
 
+  // OSD_ONLY: '0',
+  // AUTO_OSD: '1',
+  // AUTO_ONLY: '2',
+  // AUTO: '3',
+  // SINGLE_COLUMN: '4',
+  // SINGLE_BLOCK_VERT_TEXT: '5',
+  // SINGLE_BLOCK: '6', //default
+  // SINGLE_LINE: '7',
+  // SINGLE_WORD: '8',
+  // CIRCLE_WORD: '9',
+  // SINGLE_CHAR: '10',
+  // SPARSE_TEXT: '11',
+  // SPARSE_TEXT_OSD: '12',
+  // RAW_LINE: '13',
+
       await worker.setParameters({
         tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"',//valid chars in a UFI Code
+        tessedit_pageseg_mode:6 //SINGLE_BLOCK: '6', //default value
       });
     }
 
@@ -327,10 +344,11 @@
 
             let code;
 
-            const { data: { text } } = await worker.recognize(canvasFrame);
-            //let result=await worker.recognize(canvasFrame);
-            //const { data: { text } } = await worker.recognize(_tmpimg, { rotateAuto: true }, { imageColor: true, imageGrey: true, imageBinary: true });
+           const { data: { text } } = await worker.recognize(canvasFrame);
 
+            //let result=await worker.recognize(canvasFrame);
+            //const { data: { text } } = await worker.recognize(canvasFrame, { rotateAuto: true }, { imageColor: true, imageGrey: true, imageBinary: true });
+            
 
 
             // outputMessage.innerText = text;
@@ -358,7 +376,7 @@
               }
               else {
                 //outputData.style.backgroundColor="yellow";
-                console.log("NOT UFI tjek Match", timestamp);
+               // console.log("NOT UFI tjek Match", timestamp);
                 myReq = window.requestAnimationFrame(tick);
               }
 
@@ -415,6 +433,7 @@
 
         navigator.mediaDevices.getUserMedia(
           {
+            audio: false,
             video: { facingMode: "environment" },
             width: { ideal: 1280 },
             height: { ideal: 720 },
