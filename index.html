@@ -7,7 +7,7 @@
   <!-- <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script> -->
   <!-- <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script> -->
   <script src=' https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js'></script>
- 
+
   <!-- <script src="./dist/tesseract.min.js"></script>
   <script src="./dist/worker.min.js"></script> -->
 
@@ -89,9 +89,9 @@
       <div hidden><b>UFI:</b> <span id="outputData"></span></div>
     </div>
     <div><canvas id="canvasElement"></canvas></div>
-    
-    <div><canvas id="canvasFrame" ></canvas></div>
-    
+
+    <div><canvas id="canvasFrame"></canvas></div>
+
     <div id="regExFound"></div>
 
 
@@ -117,10 +117,10 @@
     const scanstart = document.getElementById("scanstart");
     const scanstop = document.getElementById("scanstop");
     const regExFound = document.getElementById("regExFound");
-    
 
-    let scanningStarted=false;
-    
+
+    let scanningStarted = false;
+
 
 
     //the rect ind video where code is read
@@ -162,20 +162,20 @@
     let myReq;
 
     var tjekUFIpromise = function (val) {
-        return new Promise(function (resolve) {
+      return new Promise(function (resolve) {
 
 
-          if (tjekUFI(val)) {
-            console.log("Valid UFI", val)
-            resolve(true);
-          } else {
-            resolve(false);
-            console.log("Invalid UFI", val)
+        if (tjekUFI(val)) {
+          console.log("Valid UFI", val)
+          resolve(true);
+        } else {
+          resolve(false);
+          console.log("Invalid UFI", val)
 
-          }
-          
-        });
-      };
+        }
+
+      });
+    };
 
 
     function tjekUFI(val) {
@@ -255,119 +255,119 @@
       //denn funktion kaldes via windows.requestAnimationFrame
       async function tick(timestamp) {
 
-        if(scanningStarted==true){
+        if (scanningStarted == true) {
           loadingMessage.innerText = "⌛ Loading video..."
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
 
-          loadingMessage.hidden = true;
-          canvasElement.hidden = false;
-          outputContainer.hidden = false;
-
-
-
-          const zoom=1.5;
-
-
-          let vw = video.videoWidth; //width of raw source video
-          let vh = video.videoHeight;
-          
-          //
-          const rect0 = { left: 0.2, top: 0.3, width: 0.6, height: 0.4 };//tal er procent af video width/height
-          
-          const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.1};//tal er procent af video width/height
-
-          
-          let cl = vw*rect0.left;
-          let ct = vh*rect0.top;
-          let cw = vw*rect0.width;
-          let ch = vh*rect0.height;   
-
-          canvasElement.width =cw*zoom;
-          canvasElement.height =ch*zoom;          
-          
-          //hele denne video tegnes som billede på canvas 
-          canvasCtx.drawImage(video, cl, ct, cw, ch, 0, 0, cw*zoom, ch*zoom);
-
-
-          //der tegnes en firkant på canvas
-          let fl = cw*rect1.left;
-          let ft = ch*rect1.top;
-          let fw = cw*rect1.width;
-          let fh = ch*rect1.height;
-      
-          canvasCtx.beginPath();
-          canvasCtx.rect(fl*zoom,ft*zoom,fw*zoom,fh*zoom);
-          canvasCtx.strokeStyle = "red";
-          canvasCtx.stroke();
-          canvasCtx.beginPath();
-
-    
-          
-
-
-          //Tesseract kan læse fra File-object, Blob-object, img-element or canvas-element
-          //I stedet for at "klippe" rectangle ud af canvasElement, så skrives direkte til en ny canvasFrame
-          
-          canvasFrame.width = fw*zoom;
-          canvasFrame.height = fh*zoom;
-          
-          canvasFrameCtx.drawImage(video,fl+cl,ft+ct,fw,fh,0,0,fw*zoom,fh*zoom);
-          
-
-          let code;
-
-          const { data: { text } } = await worker.recognize(canvasFrame);
-          //let result=await worker.recognize(canvasFrame);
-          //const { data: { text } } = await worker.recognize(_tmpimg, { rotateAuto: true }, { imageColor: true, imageGrey: true, imageBinary: true });
+            loadingMessage.hidden = true;
+            canvasElement.hidden = false;
+            outputContainer.hidden = false;
 
 
 
-         // outputMessage.innerText = text;
-
-          // const regex = /[0-9]/gi;    
-          const regex = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
-          let code2 = text && text.match(regex) && text.match(regex).filter(x => x).join("");
-          //console.log({ text, code2 });
+            const zoom = 1.5;
 
 
-          if (code2) {
+            let vw = video.videoWidth; //width of raw source video
+            let vh = video.videoHeight;
 
-            //outputMessage.hidden = true;
-            //outputData.parentElement.hidden = false;
-            //outputData.innerText = code2;
-            regExFound.innerText+="\n" + code2;
-            if (await tjekUFIpromise(code2)) {
-              outputData.parentElement.hidden = false;
-              outputData.innerText = code2;
-              outputData.style.backgroundColor = "lightgreen";
-             // stopStreamedVideo(video, 4000);//stopper med delay på 4000 millisek
-              stopStreamedVideo(video);
-              console.log({ text, code2 });
-              //console.log(result);
+            //
+            const rect0 = { left: 0.4, top: 0.3, width: 0.7, height: 0.4 };//tal er procent af video width/height
+
+            const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.1 };//tal er procent af video width/height
+
+
+            let cl = vw * rect0.left;
+            let ct = vh * rect0.top;
+            let cw = vw * rect0.width;
+            let ch = vh * rect0.height;
+
+            canvasElement.width = cw * zoom;
+            canvasElement.height = ch * zoom;
+
+            //hele denne video tegnes som billede på canvas 
+            canvasCtx.drawImage(video, cl, ct, cw, ch, 0, 0, cw * zoom, ch * zoom);
+
+
+            //der tegnes en firkant på canvas
+            let fl = cw * rect1.left;
+            let ft = ch * rect1.top;
+            let fw = cw * rect1.width;
+            let fh = ch * rect1.height;
+
+            canvasCtx.beginPath();
+            canvasCtx.rect(fl * zoom, ft * zoom, fw * zoom, fh * zoom);
+            canvasCtx.strokeStyle = "red";
+            canvasCtx.stroke();
+            canvasCtx.beginPath();
+
+
+
+
+
+            //Tesseract kan læse fra File-object, Blob-object, img-element or canvas-element
+            //I stedet for at "klippe" rectangle ud af canvasElement, så skrives direkte til en ny canvasFrame
+
+            canvasFrame.width = fw * zoom;
+            canvasFrame.height = fh * zoom;
+
+            canvasFrameCtx.drawImage(video, fl + cl, ft + ct, fw, fh, 0, 0, fw * zoom, fh * zoom);
+
+
+            let code;
+
+            const { data: { text } } = await worker.recognize(canvasFrame);
+            //let result=await worker.recognize(canvasFrame);
+            //const { data: { text } } = await worker.recognize(_tmpimg, { rotateAuto: true }, { imageColor: true, imageGrey: true, imageBinary: true });
+
+
+
+            // outputMessage.innerText = text;
+
+            // const regex = /[0-9]/gi;    
+            const regex = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
+            let code2 = text && text.match(regex) && text.match(regex).filter(x => x).join("");
+            //console.log({ text, code2 });
+
+
+            if (code2) {
+
+              //outputMessage.hidden = true;
+              //outputData.parentElement.hidden = false;
+              //outputData.innerText = code2;
+              regExFound.innerText += "\n" + code2;
+              if (await tjekUFIpromise(code2)) {
+                outputData.parentElement.hidden = false;
+                outputData.innerText = code2;
+                outputData.style.backgroundColor = "lightgreen";
+                // stopStreamedVideo(video, 4000);//stopper med delay på 4000 millisek
+                stopStreamedVideo(video);
+                console.log({ text, code2 });
+                //console.log(result);
+              }
+              else {
+                //outputData.style.backgroundColor="yellow";
+                console.log("NOT UFI tjek Match", timestamp);
+                myReq = window.requestAnimationFrame(tick);
+              }
+
+
             }
             else {
-              //outputData.style.backgroundColor="yellow";
-              console.log("NOT UFI tjek Match", timestamp);
+
+              //outputMessage.hidden = false;
+              //outputData.parentElement.hidden = true;
+              //console.log("NOT RegEx tjek Match", timestamp);
               myReq = window.requestAnimationFrame(tick);
             }
 
-
-          }
+          }//end video.HAVE_ENOUGH_DATA
           else {
-
-            //outputMessage.hidden = false;
-            //outputData.parentElement.hidden = true;
-            //console.log("NOT RegEx tjek Match", timestamp);
+            //NOT HAVE_ENOUGH_DATA
+            //repeat requestAnimationFrame until video.HAVE_ENOUGH_DATA
+            //console.log("NOT HAVE_ENOUGH_DATA", timestamp);
             myReq = window.requestAnimationFrame(tick);
           }
-
-        }//end video.HAVE_ENOUGH_DATA
-        else {
-          //NOT HAVE_ENOUGH_DATA
-          //repeat requestAnimationFrame until video.HAVE_ENOUGH_DATA
-          //console.log("NOT HAVE_ENOUGH_DATA", timestamp);
-          myReq = window.requestAnimationFrame(tick);
-        }
         }
 
 
@@ -375,7 +375,7 @@
 
 
       function stopStreamedVideo(videoElem, delaymillisec = 0) {
-        scanningStarted=false;
+        scanningStarted = false;
         const stream = videoElem.srcObject;
         const tracks = stream.getTracks();
 
@@ -397,12 +397,18 @@
 
 
       function startScanner() {
-        scanningStarted=true;
+        scanningStarted = true;
         loadingMessage.hidden = false;
         outputData.innerText = "";
         regExFound.innerText = "";
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } })
+        navigator.mediaDevices.getUserMedia(
+          {
+            video: { facingMode: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            //advanced:[{torch:true}]
+          })
           .then(async function (stream) {
             video.srcObject = stream;
             video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
@@ -418,8 +424,34 @@
             scanstart.hidden = true;
             scanstop.hidden = false;
 
+            // get the active track of the stream
+            const track = stream.getVideoTracks()[0];
+
+            video.addEventListener('loadedmetadata', (e) => {
+              window.setTimeout(() => (
+                onCapabilitiesReady(track.getCapabilities())
+              ), 500);
+            });
+
+            function onCapabilitiesReady(capabilities) {
+              //console.log(capabilities);
+              if (capabilities.zoom) {
+                track.applyConstraints({
+                  advanced: [{zoom: capabilities.zoom.max}]
+                })
+                .catch(e => console.log(e));
+              }
+              if (capabilities.torch) {
+                track.applyConstraints({
+                  advanced: [{torch: true}]
+                })
+                .catch(e => console.log(e));
+              }
+
+            }
+
           }
-          );
+          ).catch(err => console.error('getUserMedia() failed: ', err));
       }
 
 
