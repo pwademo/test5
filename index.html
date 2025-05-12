@@ -280,7 +280,8 @@
             //
             const rect0 = { left: 0.4, top: 0.3, width: 0.7, height: 0.4 };//tal er procent af video width/height
 
-            const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.1 };//tal er procent af video width/height
+            //const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.1 };//tal er procent af video width/height
+            const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.3 };//tal er procent af video width/height
 
 
             let cl = vw * rect0.left;
@@ -443,19 +444,27 @@
               //console.log(capabilities);
               if (capabilities.zoom) {
                 debugdiv.innerHTML+=  "<br/>zoom.max:" + capabilities.zoom.max 
-                
+                debugdiv.innerHTML+=  "<br/>zoom.min:" + capabilities.zoom.min 
                 track.applyConstraints({
                  // advanced: [{zoom: capabilities.zoom.max}]
                  advanced: [{zoom: 3}]
                 })
                 .catch(e => console.log(e));
               }
+              else {
+                debugdiv.innerHTML+= "<br/>zoom: false"
+              }
+
               if (capabilities.torch) {
                 track.applyConstraints({
                   advanced: [{torch: true}]
                 })
                 .catch(e => console.log(e));
+              }              
+              else {
+                debugdiv.innerHTML+= "<br/>torch: false"
               }
+
               if (capabilities.focusMode) {
                 debugdiv.innerHTML+= "<br/>focusMode: true"
 
