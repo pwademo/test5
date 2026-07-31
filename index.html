@@ -3,14 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>UFI scanner Demo</title>
-
-  <!-- <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script> -->
-  <!-- <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script> -->
-  <!-- <script src=' https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js'></script> -->
-<script src=' https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/6.0.0/tesseract.min.js'></script>
-  <!-- <script src="./dist/tesseract.min.js"></script>
-  <script src="./dist/worker.min.js"></script> -->
-
+  <script src=' https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/7.0.0/tesseract.min.js'></script>
 
   <style>
     body {
@@ -76,8 +69,7 @@
 </head>
 
 
-
-<body>    
+<body>
   <div>
     <button id="scanstart">Scan start</button>
     <button id="scanstop" hidden>Scan stop</button>to0000
@@ -95,8 +87,8 @@
     <div><canvas id="canvasElement"></canvas></div>
 
     <div><canvas id="canvasFrame"></canvas></div>
-<button id="torchon" hidden>Torch on</button>
-<button id="torchoff" hidden>Torch off</button>
+    <button id="torchon" hidden>Torch on</button>
+    <button id="torchoff" hidden>Torch off</button>
     <div id="regExFound"></div>
 
 
@@ -105,9 +97,9 @@
 
 
   </div>
-<div id="debugdiv">
+  <div id="debugdiv">
 
-</div>
+  </div>
 
 
   <script>
@@ -125,9 +117,9 @@
     const scanstop = document.getElementById("scanstop");
     const regExFound = document.getElementById("regExFound");
 
-    const debugdiv=document.getElementById("debugdiv")
-   const torchon = document.getElementById("torchon");
-   const torchoff = document.getElementById("torchoff");
+    const debugdiv = document.getElementById("debugdiv")
+    const torchon = document.getElementById("torchon");
+    const torchoff = document.getElementById("torchoff");
 
     let scanningStarted = false;
 
@@ -139,7 +131,7 @@
 
 
     let worker;
-    
+
 
     async function initWorker() {
 
@@ -152,29 +144,29 @@
       They can be disabled by setting both of the configuration variables load_system_dawg and load_freq_dawg to false.
       */
       worker = await Tesseract.createWorker("eng", 1, {
-        workerPath: "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/6.0.0/worker.min.js",
+        workerPath: "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/7.0.0/worker.min.js",
         load_system_dawg: false,
         load_freq_dawg: false
       });
 
-  // OSD_ONLY: '0',
-  // AUTO_OSD: '1',
-  // AUTO_ONLY: '2',
-  // AUTO: '3',
-  // SINGLE_COLUMN: '4',
-  // SINGLE_BLOCK_VERT_TEXT: '5',
-  // SINGLE_BLOCK: '6', //default
-  // SINGLE_LINE: '7',
-  // SINGLE_WORD: '8',
-  // CIRCLE_WORD: '9',
-  // SINGLE_CHAR: '10',
-  // SPARSE_TEXT: '11',
-  // SPARSE_TEXT_OSD: '12',
-  // RAW_LINE: '13',
+      // OSD_ONLY: '0',
+      // AUTO_OSD: '1',
+      // AUTO_ONLY: '2',
+      // AUTO: '3',
+      // SINGLE_COLUMN: '4',
+      // SINGLE_BLOCK_VERT_TEXT: '5',
+      // SINGLE_BLOCK: '6', //default
+      // SINGLE_LINE: '7',
+      // SINGLE_WORD: '8',
+      // CIRCLE_WORD: '9',
+      // SINGLE_CHAR: '10',
+      // SPARSE_TEXT: '11',
+      // SPARSE_TEXT_OSD: '12',
+      // RAW_LINE: '13',
 
       await worker.setParameters({
         tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"',//valid chars in a UFI Code
-        tessedit_pageseg_mode:6 //SINGLE_BLOCK: '6', //default value
+        tessedit_pageseg_mode: 6 //SINGLE_BLOCK: '6', //default value
       });
     }
 
@@ -210,8 +202,6 @@
       // var ufino = val.trim();
       let ufino = val;
       //var pattern = /^([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})$/;
-
-
       let pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
       let _ufi = ufino.match(pattern);
       //console.log("_ufi:", _ufi);
@@ -329,31 +319,17 @@
             canvasCtx.stroke();
             canvasCtx.beginPath();
 
-
-
-
-
             //Tesseract kan læse fra File-object, Blob-object, img-element or canvas-element
             //I stedet for at "klippe" rectangle ud af canvasElement, så skrives direkte til en ny canvasFrame
-            const canvasFrameZoom=2;
-            canvasFrame.width = fw * zoom*canvasFrameZoom;
-            canvasFrame.height = fh * zoom*canvasFrameZoom;
+            const canvasFrameZoom = 2;
+            canvasFrame.width = fw * zoom * canvasFrameZoom;
+            canvasFrame.height = fh * zoom * canvasFrameZoom;
 
-            canvasFrameCtx.drawImage(video, fl + cl, ft + ct, fw, fh, 0, 0, fw * zoom*canvasFrameZoom, fh * zoom*canvasFrameZoom);
-
+            canvasFrameCtx.drawImage(video, fl + cl, ft + ct, fw, fh, 0, 0, fw * zoom * canvasFrameZoom, fh * zoom * canvasFrameZoom);
 
             let code;
 
-           const { data: { text } } = await worker.recognize(canvasFrame);
-
-            //let result=await worker.recognize(canvasFrame);
-            //const { data: { text } } = await worker.recognize(canvasFrame, { rotateAuto: true }, { imageColor: true, imageGrey: true, imageBinary: true });
-            
-
-
-            // outputMessage.innerText = text;
-
-            // const regex = /[0-9]/gi;    
+            const { data: { text } } = await worker.recognize(canvasFrame);
             const regex = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
             let code2 = text && text.match(regex) && text.match(regex).filter(x => x).join("");
             //console.log({ text, code2 });
@@ -376,7 +352,7 @@
               }
               else {
                 //outputData.style.backgroundColor="yellow";
-               // console.log("NOT UFI tjek Match", timestamp);
+                // console.log("NOT UFI tjek Match", timestamp);
                 myReq = window.requestAnimationFrame(tick);
               }
 
@@ -437,14 +413,12 @@
             video: { facingMode: "environment" },
             width: { ideal: 1280 },
             height: { ideal: 720 },
-          
+
           })
           .then(async function (stream) {
             video.srcObject = stream;
             video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
             video.play();
-
-
             // await worker.load();
             // await worker.loadLanguage("eng");
             // await worker.initialize("eng");
@@ -466,21 +440,21 @@
             function onCapabilitiesReady(capabilities) {
               //console.log(capabilities);
               if (capabilities.zoom) {
-                debugdiv.innerHTML+=  "<br/>zoom.max:" + capabilities.zoom.max 
-                debugdiv.innerHTML+=  "<br/>zoom.min:" + capabilities.zoom.min 
+                debugdiv.innerHTML += "<br/>zoom.max:" + capabilities.zoom.max
+                debugdiv.innerHTML += "<br/>zoom.min:" + capabilities.zoom.min
                 track.applyConstraints({
-                 // advanced: [{zoom: capabilities.zoom.max}]
-                 advanced: [{zoom: 1.5}]
+                  // advanced: [{zoom: capabilities.zoom.max}]
+                  advanced: [{ zoom: 1.5 }]
                 })
-                .catch(e => console.log(e));
+                  .catch(e => console.log(e));
               }
               else {
-                debugdiv.innerHTML+= "<br/>zoom: false"
+                debugdiv.innerHTML += "<br/>zoom: false"
               }
 
               if (capabilities.torch) {
-torchon.hidden = false;
-torchoff.hidden = false;
+                torchon.hidden = false;
+                torchoff.hidden = false;
 
                 torchon.addEventListener("click", (e) => {
                   e.preventDefault();
@@ -489,25 +463,25 @@ torchoff.hidden = false;
                   })
                     .catch(e => console.log(e));
                 });
-               torchoff.addEventListener("click", (e) => {
+                torchoff.addEventListener("click", (e) => {
                   e.preventDefault();
                   track.applyConstraints({
                     advanced: [{ torch: false }]
                   })
                     .catch(e => console.log(e));
                 });
-                      
-              }              
+
+              }
               else {
-                debugdiv.innerHTML+= "<br/>torch: false"
+                debugdiv.innerHTML += "<br/>torch: false"
               }
 
               if (capabilities.focusMode) {
-                debugdiv.innerHTML+= "<br/>focusMode: true"
+                debugdiv.innerHTML += "<br/>focusMode: true"
 
               }
               else {
-                debugdiv.innerHTML+= "<br/>focusMode: false"
+                debugdiv.innerHTML += "<br/>focusMode: false"
               }
 
             }
