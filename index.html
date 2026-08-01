@@ -1,647 +1,107 @@
-<!-- <!doctype html> -->
-<html lang="en">
-
+<!DOCTYPE html>
+<html lang="da">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UFI scanner Demo</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
-    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-
-
-
-
-
-
-  <style>
-    #wrapper {
-      /* top: 0;
-      left: 0;
-      margin: 0 0;
-      position: relative;
-      overflow: hidden; */
-      z-index: 10;
-    }
-
-
-
-
-
-    /* #loadingMessage {
-      max-width: 250px;
-      text-align: center;
-      padding: 30px;
-      background-color: #eee;
-    } */
-
-
-    /* #canvas {} */
-
-
-
-
-    /* #output {
-      margin-top: 20px;
-      background: #eee;
-      padding: 10px;
-      padding-bottom: 0;
-    } */
-
-    #output div {
-      /* padding-bottom: 10px; */
-      word-wrap: break-word;
-    }
-
-
-
-    /* #noQRFound {
-      text-align: center;
-    } */
-  </style>
+    <meta charset="UTF-8">
+    <title>Video på Canvas med Lommelygte</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 20px; }
+        canvas { border: 2px solid #333; max-width: 100%; height: auto; display: block; margin: 10px auto; }
+        button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; }
+    </style>
 </head>
+<body>
 
-
-<body class="p-2">
-  <div class="container"></div>
-  <div class="row">
-
-    <div class="col-sm-12 col-md-8 col-lg-6">
-      <div>
-        <button id="scanstart" type="button" class="btn btn-primary">Scan start</button>
-        <button id="scanstop" type="button" class="btn btn-primary" hidden>Scan stop</button>
-      </div>
-    </div>
-  </div>
-  <div class="row">
-
-    <div class="col-sm-12 col-md-8 col-lg-6">
-
-      <div id="wrapper" class="border rounded p-3 bg-light mt-2">
-        <div id="loadingMessage" hidden>🎥 Unable access video stream (please make sure you have a webcam enabled)</div>
-
-        <div id="output" hidden>
-
-          <div hidden>
-            <b>UFI:</b>
-            <span id="outputData"></span>
-            <span><button id="btnlinkto" type="button" class="btn btn-warning">
-                Søg SDS i Google</button>
-            </span>
-          </div>
-        </div>
-
-        <!-- Her vises video incl læsefelt -->
-        <div><canvas id="canvasElement"></canvas></div>
-
-        <!-- Her vises forstørret udgave af læsefeltet -->
-        <div class="mt-2 mb-4">
-          <canvas id="canvasFrame"></canvas>
-        </div>
-
-        <div>
-          <button id="torchon" type="button" class="btn btn-warning" hidden>Torch on</button>
-          <button id="torchoff" type="button" class="btn btn-secondary" hidden>Torch off</button>
-
-        </div>
-        <div id="regExFound"></div>
-
-        <br />
-
-
-      </div>
-      <div id="debugdiv">
-
-      </div>
+    <h1>Video Stream på Canvas</h1>
+    <div>
+        <button id="startBtn">Start</button>
+        <button id="stopBtn" disabled>Stop</button>
     </div>
 
-  </div>
-  </div>
-  <script src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/7.0.0/tesseract.min.js'></script>
+    <video id="video" autoplay playsinline style="display:none;"></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
-    integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
-    crossorigin="anonymous"></script>
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
 
+    let mediaStream = null;
+    let track = null;
+    let isRunning = false;
 
+    function tick() {
+        if (!isRunning) return;
 
-  <script>
-    /* #region scanner */
-    const video = document.createElement("video");
-    const canvasElement = document.getElementById("canvasElement");
-    const canvasCtx = canvasElement.getContext("2d");
-    const canvasFrame = document.getElementById("canvasFrame");
-    const canvasFrameCtx = canvasFrame.getContext("2d");
-    const loadingMessage = document.getElementById("loadingMessage");
-    const outputContainer = document.getElementById("output");
-    // const outputMessage = document.getElementById("outputMessage");
-    const outputData = document.getElementById("outputData");
-    const scanstart = document.getElementById("scanstart");
-    const scanstop = document.getElementById("scanstop");
-    const regExFound = document.getElementById("regExFound");
+        // Her kan du tilgå hver enkelt frame på lærredet eller direkte fra video-elementet
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
 
-    const debugdiv = document.getElementById("debugdiv")
-    const torchon = document.getElementById("torchon");
-    const torchoff = document.getElementById("torchoff");
-
-    const btnlinkto = document.getElementById("btnlinkto");
-
-
-
-    const BLUR_THRESHOLD = 25; // Juster denne værdi (lavere = mere tolerant overfor sløring)
-
-    let scanningStarted = false;
-
-
-
-    //the rect ind video where code is read
-    let rectWidth = 200;
-    let rectHeight = 30;
-
-
-    let worker;
-
-
-    async function initWorker() {
-
-
-      /*
-      A worker is created once and used every time a user uploads a new file.  
-
-      https://tesseract-ocr.github.io/tessdoc/ImproveQuality.html
-      Disabling the dictionaries Tesseract uses should increase recognition if most of your text isn’t dictionary words. 
-      They can be disabled by setting both of the configuration variables load_system_dawg and load_freq_dawg to false.
-      */
-      worker = await Tesseract.createWorker("eng", 1, {
-        workerPath: "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/7.0.0/worker.min.js",
-        load_system_dawg: false, //Indlæser systemets standardordbog over gyldige ord på det valgte sprog.
-        load_freq_dawg: false, // Indlæser en liste over de mest hyppigt forekommende ord på sproget
-        tessedit_ocr_engine_mode: '2', // LSTM only - hurtigere
-        textord_min_xheight: '8', // Optimeret til lille skrift
-        preserve_interword_spaces: '0',
-        language_model_penalty_non_freq_dict_word: '0',
-        language_model_penalty_non_dict_word: '0'
-      });
-
-
-      await worker.setParameters({
-        tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"',//valid chars in a UFI Code
-        tessedit_pageseg_mode: 7 //SINGLE_Line
-      });
-
-      /*
-            ========================
-            tessedit_pageseg_mode:
-            ========================
-            OSD_ONLY: '0',
-            AUTO_OSD: '1',
-            AUTO_ONLY: '2',
-            AUTO: '3',
-            SINGLE_COLUMN: '4',
-            SINGLE_BLOCK_VERT_TEXT: '5',
-            SINGLE_BLOCK: '6', //default
-            SINGLE_LINE: '7',
-            SINGLE_WORD: '8',
-            CIRCLE_WORD: '9',
-            SINGLE_CHAR: '10',
-            SPARSE_TEXT: '11',
-            SPARSE_TEXT_OSD: '12'
-            RAW_LINE: '13',
-      */
-
-
+        window.requestAnimationFrame(tick);
     }
 
-
-    initWorker();
-
-
-
-
-
-
-    let myReq;
-
-    var tjekUFIpromise = function (val) {
-      return new Promise(function (resolve) {
-        if (tjekUFI(val)) {
-          console.log("Valid UFI", val)
-          resolve(true);
-        } else {
-          resolve(false);
-          console.log("Invalid UFI", val)
-        }
-      });
-    };
-
-    var isImageBlurredpromise = function (imageData) {
-      return new Promise(function (resolve) {
-        if (isImageBlurred(imageData)) {
-          console.log("IsBlurred")
-          resolve(true);
-        } else {
-          resolve(false);
-          console.log("IsNotBlurred")
-        }
-      });
-    };
-
-
-
-    //Sløringsdetektor (Laplacian Variance)
-    function isImageBlurred(imageData) {
-
-      const width = imageData.width;
-      const height = imageData.height;
-      const data = imageData.data;
-
-      // Konverter til gråtone og lav Laplacian filter
-      const laplacian = new Float32Array(width * height);
-
-      for (let y = 1; y < height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-          const idx = (y * width + x) * 4;
-
-          // Simpel gråtone (Luminans) for center og naboer
-          const getGray = (dx, dy) => {
-            const i = ((y + dy) * width + (x + dx)) * 4;
-            return 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          };
-
-          // Laplacian Kernel: [[0, 1, 0], [1, -4, 1], [0, 1, 0]]
-          const val = getGray(0, -1) + getGray(-1, 0) - (4 * getGray(0, 0)) + getGray(1, 0) + getGray(0, 1);
-          laplacian[y * width + x] = val;
-        }
-      }
-
-      // Beregn varians af Laplacian
-      let sum = 0;
-      for (let i = 0; i < laplacian.length; i++) sum += laplacian[i];
-      const mean = sum / laplacian.length;
-
-      let varianceSum = 0;
-      for (let i = 0; i < laplacian.length; i++) {
-        varianceSum += Math.pow(laplacian[i] - mean, 2);
-      }
-      const variance = varianceSum / laplacian.length;
-      console.log("Test if Image is Blurred: " + variance)
-
-      return variance < BLUR_THRESHOLD;
-    }
-
-
-    function tjekUFI(val) {
-
-      // var ufino = val.trim();
-      let ufino = val;
-      //var pattern = /^([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})$/;
-      let pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
-      let _ufi = ufino.match(pattern);
-      //console.log("_ufi:", _ufi);
-      if (_ufi == null) return false;
-
-      //Nået hertil ved vi at pattern er true
-
-      //Fjern alle bindestreger
-      var re2 = new RegExp('-', 'g');
-      var _ufino = _ufi[0].replace(re2, '');
-
-      //console.log("UFI no hypen:", _ufino);
-
-      //Dette er de lovlige charakterer der kan være i et UFI nummer
-      var repr = "0123456789ACDEFGHJKMNPQRSTUVWXY";
-
-      var _sum = 0;
-
-      for (var i = 0; i < _ufino.length; i++) {
-        var reprChar = _ufino[i];//Char på plads nr. i
-        var ui = repr.indexOf(reprChar);//index og dermed værdien af Char på plads nr. i
-        _sum += (i + 1) * ui;
-      }
-      return _sum % 31 === 0;
-
-    }
-
-    /**/
-
-    document.addEventListener('readystatechange', function (event) {
-      if (document.readyState === "complete") {
-      }
-
-
-      /*Wrap jsQR in promise make it posible to run as async/await */
-      var jsQRpromise = function (myimg) {
-        return new Promise(function (resolve) {
-          var code = jsQR(myimg.data, myimg.width, myimg.height, {
-            inversionAttempts: "dontInvert",
-          });
-
-          if (code) {
-            console.log("Found QR");
-            console.log(code.data);
-          }
-          resolve(code);
-        });
-      };
-
-
-      //Convert from imagedata to Image
-      function imgDataToImage(imagedata) {
-        var canvas = document.createElement('canvas');
-        var ctx = canvas.getContext('2d');
-        canvas.width = imagedata.width;
-        canvas.height = imagedata.height;
-        ctx.putImageData(imagedata, 0, 0);
-
-        var image = new Image();
-        image.src = canvas.toDataURL();
-        return image;
-      }
-
-
-      //denn funktion kaldes via windows.requestAnimationFrame
-      async function tick(timestamp) {
-
-        if (scanningStarted == true) {
-          loadingMessage.innerText = "⌛ Loading video..."
-          if (video.readyState === video.HAVE_ENOUGH_DATA) {
-
-            loadingMessage.hidden = true;
-            canvasElement.hidden = false;
-            outputContainer.hidden = false;
-
-
-
-            //const zoom = 1.5;
-            const zoom = 1;
-
-            let vw = video.videoWidth; //width of raw source video
-            let vh = video.videoHeight;
-
-            //
-            const rect0 = { left: 0.4, top: 0.3, width: 0.7, height: 0.4 };//tal er procent af video width/height
-
-            //const rect1 = { left: 0.30, top: 0.45, width: 0.4, height: 0.1 };//tal er procent af video width/height
-            const rect1 = { left: 0.30, top: 0.45, width: 0.5, height: 0.15 };//tal er procent af video width/height
-
-
-            let cl = vw * rect0.left;
-            let ct = vh * rect0.top;
-            let cw = vw * rect0.width;
-            let ch = vh * rect0.height;
-
-            canvasElement.width = cw * zoom;
-            canvasElement.height = ch * zoom;
-
-            //hele denne video tegnes som billede på canvas 
-            canvasCtx.drawImage(video, cl, ct, cw, ch, 0, 0, cw * zoom, ch * zoom);
-
-
-            //der tegnes en firkant på canvas
-            let fl = cw * rect1.left;
-            let ft = ch * rect1.top;
-            let fw = cw * rect1.width;
-            let fh = ch * rect1.height;
-
-            canvasCtx.beginPath();
-            canvasCtx.rect(fl * zoom, ft * zoom, fw * zoom, fh * zoom);
-            canvasCtx.strokeStyle = "red";
-            canvasCtx.stroke();
-            canvasCtx.beginPath();
-
-            //Tesseract kan læse fra File-object, Blob-object, img-element or canvas-element
-            //I stedet for at "klippe" rectangle ud af canvasElement, så skrives direkte til en ny canvasFrame
-            const canvasFrameZoom = 2;
-            canvasFrame.width = fw * zoom * canvasFrameZoom;
-            canvasFrame.height = fh * zoom * canvasFrameZoom;
-            canvasFrameCtx.drawImage(video, fl + cl, ft + ct, fw, fh, 0, 0, fw * zoom * canvasFrameZoom, fh * zoom * canvasFrameZoom);
-
-
-            //her tjekkes for skarphed
-            //let PQ=await isImageBlurredpromise(canvasFrame);
-
-
-
-
-            //her bruges tesseract til at læse canvasFrame
-            const { data: { text } } = await worker.recognize(canvasFrame);
-            const regex = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
-            let code2 = text && text.match(regex) && text.match(regex).filter(x => x).join("");
-            //console.log({ text, code2 });
-
-
-
-
-            if (code2) {
-              //regExFound.innerText += "\n" + code2;
-              if (await tjekUFIpromise(code2)) {
-                outputData.parentElement.hidden = false;
-                btnlinkto.parentElement.hidden = false;
-                outputData.innerText = code2;
-                //outputData.style.backgroundColor = "lightgreen";
-
-
-                // stopStreamedVideo(video, 4000);//stopper med delay på 4000 millisek
-                stopStreamedVideo(video);
-                console.log({ text, code2 });
-              }
-              else {
-                //outputData.style.backgroundColor="yellow";
-                // console.log("NOT UFI tjek Match", timestamp);
-                myReq = window.requestAnimationFrame(tick);
-              }
-
-
-            }
-            else {
-
-              //outputMessage.hidden = false;
-              //outputData.parentElement.hidden = true;
-              //console.log("NOT RegEx tjek Match", timestamp);
-              myReq = window.requestAnimationFrame(tick);
-            }
-
-          }//end video.HAVE_ENOUGH_DATA
-          else {
-            //NOT HAVE_ENOUGH_DATA
-            //repeat requestAnimationFrame until video.HAVE_ENOUGH_DATA
-            //console.log("NOT HAVE_ENOUGH_DATA", timestamp);
-            myReq = window.requestAnimationFrame(tick);
-          }
-        }
-
-
-      }
-
-
-      function stopStreamedVideo(videoElem, delaymillisec = 0) {
-        scanningStarted = false;
-        const stream = videoElem.srcObject;
-        const tracks = stream.getVideoTracks()[0];;
-
-
+    async function startStream() {
         try {
-          videoTrack.applyConstraints({
-            advanced: [{ torch: false }]
-          });
-        } catch (err) {
-          console.log("Fejl ved slukning af torch:", err);
-        }
-        // 2. Stop alle videoredskaber/streams
-        stream.getTracks().forEach(track => track.stop());
-
-
-        window.cancelAnimationFrame(myReq);
-
-        videoElem.srcObject = null;
-        scanstop.hidden = true;
-
-        scanstart.hidden = false;
-        window.cancelAnimationFrame(myReq);
-        setTimeout(() => canvasElement.hidden = true, delaymillisec)//vent x millisekunder og skjul derefter cancas         
-      }
-
-
-
-      function startScanner() {
-        scanningStarted = true;
-        loadingMessage.hidden = false;
-        outputData.innerText = "";
-        btnlinkto.parentElement.hidden = true;
-
-        regExFound.innerText = "";
-
-        navigator.mediaDevices.getUserMedia(
-          {
-            audio: false,
-            video: { facingMode: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-
-          })
-          .then(async function (stream) {
-
-            video.srcObject = stream;
-
-            video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
-            video.play();
-            // await worker.load();
-            // await worker.loadLanguage("eng");
-            // await worker.initialize("eng");
-
-            myReq = await window.requestAnimationFrame(tick);
-
-            scanstart.hidden = true;
-            scanstop.hidden = false;
-
-            // get the active track of the stream
-            const track = stream.getVideoTracks()[0];
-
-            video.addEventListener('loadedmetadata', (e) => {
-              window.setTimeout(() => (
-                onCapabilitiesReady(track.getCapabilities())
-              ), 500);
-            });
-
-            function onCapabilitiesReady(capabilities) {
-              //console.log(capabilities);
-              if (capabilities.zoom) {
-                //debugdiv.innerHTML += "<br/>zoom.max:" + capabilities.zoom.max
-                //debugdiv.innerHTML += "<br/>zoom.min:" + capabilities.zoom.min
-                track.applyConstraints({
-                  // advanced: [{zoom: capabilities.zoom.max}]
-                  advanced: [{ zoom: 1.5 }]
-                })
-                  .catch(e => console.log(e));
-              }
-              else {
-                //debugdiv.innerHTML += "<br/>zoom: false"
-              }
-
-              if (capabilities.torch) {
-
-                torchon.hidden = false;
-                torchoff.hidden = false;
-
-                torchon.addEventListener("click", (e) => {
-                  e.preventDefault();
-                  torchOn(true);
-                });
-
-                torchoff.addEventListener("click", (e) => {
-                  e.preventDefault();
-                  torchOn(false);
-                });
-
-                function torchOn(ison = true) {
-                  //alert(ison)
-                  track.applyConstraints({
-                    advanced: [{ torch: ison }]
-                  })
-                    .catch(e => console.log(e));
+            // Anmod om kamera med bagudvendt foretrukket og forsøg at tænde torch
+            const constraints = {
+                video: {
+                    facingMode: 'environment',
+                    advanced: [{ torch: true }]
                 }
-              }
-              else {
-                //debugdiv.innerHTML += "<br/>torch: false"
-              }
+            };
 
-              if (capabilities.focusMode) {
-                //debugdiv.innerHTML += "<br/>focusMode: true"
+            mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = mediaStream;
+            await video.play();
 
-              }
-              else {
-                // debugdiv.innerHTML += "<br/>focusMode: false"
-              }
+            track = mediaStream.getVideoTracks()[0];
 
+            // Tjek om torch rent faktisk blev tændt/understøttes
+            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+            if (!capabilities.torch) {
+                console.log("Torch (lommelygte) understøttes ikke på denne enhed.");
             }
 
-          }
-          ).catch(err => console.error('getUserMedia() failed: ', err));
-      }
+            isRunning = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
 
+            window.requestAnimationFrame(tick);
+        } catch (err) {
+            console.error("Fejl ved start af kamera:", err);
+            alert("Kunne ikke starte videostream.");
+        }
+    }
 
+    async function stopStream() {
+        isRunning = false;
 
-      function getUfiFromString(text) {
-        var pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
-        let _ufisInString = text.match(pattern);
-        if (_ufisInString == null) return null;
-        return _ufisInString[0];//firs ufi match
-      }
+        if (track) {
+            // Sluk torch før sporet lukkes (hvis understøttet)
+            try {
+                await track.applyConstraints({ advanced: [{ torch: false }] });
+            } catch (e) {
+                // Ignorer fejl ved slukning af torch
+            }
+            track.stop();
+        }
 
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(t => t.stop());
+        }
 
+        video.srcObject = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    }
 
-      scanstart.addEventListener("click", (e) => {
-        e.preventDefault();
-        startScanner();
-      });
+    startBtn.addEventListener('click', startStream);
+    stopBtn.addEventListener('click', stopStream);
+</script>
 
-      scanstop.addEventListener("click", (e) => {
-        e.preventDefault();
-        stopStreamedVideo(video);
-        //  window.cancelAnimationFrame(myReq);
-      });
-
-
-
-
-      btnlinkto.addEventListener("click", (e) => {
-        e.preventDefault();
-        const domain = "https://google.dk";
-        const parms = "/search?q= "
-
-
-        console.log(outputData.innerText)
-        //const vindueegenskaber="height=600,width=800,scrollbars=yes,resizable=yes"
-        window.open(domain + parms + outputData.innerText + " SIKKERHEDSDATABLAD" + " filetype:pdf", "_blank")
-      });
-
-
-
-
-    });
-
-    /* #endregion scanner */
-  </script>
 </body>
-
 </html>
