@@ -1,114 +1,127 @@
-<html>
+<!-- <!doctype html> -->
+<html lang="en">
 
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>UFI scanner Demo</title>
-  <script src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/7.0.0/tesseract.min.js'></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+
+
+
+
+
 
   <style>
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-    }
-
     #wrapper {
-      top: 0;
+      /* top: 0;
       left: 0;
-
-      /* width: 640px; */
       margin: 0 0;
       position: relative;
-      overflow: hidden;
+      overflow: hidden; */
       z-index: 10;
     }
 
-    #scanstart {
-      position: absolute;
-      top: 10;
-      left: 10;
-    }
-
-    #scanstop {
-      position: absolute;
-      top: 10;
-      left: 10;
-    }
 
 
 
-    #loadingMessage {
+
+    /* #loadingMessage {
       max-width: 250px;
       text-align: center;
       padding: 30px;
       background-color: #eee;
-    }
+    } */
 
 
-    #canvas {}
+    /* #canvas {} */
 
 
 
 
-    #output {
+    /* #output {
       margin-top: 20px;
       background: #eee;
       padding: 10px;
       padding-bottom: 0;
-    }
+    } */
 
     #output div {
-      padding-bottom: 10px;
+      /* padding-bottom: 10px; */
       word-wrap: break-word;
     }
 
 
 
-    #noQRFound {
+    /* #noQRFound {
       text-align: center;
-    }
+    } */
   </style>
 </head>
 
 
-<body>
-  <div>
+<body class="p-2">
+  <div class="container"></div>
+  <div class="row">
 
-    
-    <p>.</p>
-    <button id="scanstart">Scan start</button>
-    <button id="scanstop" hidden>Scan stop</button>
-
-  </div>
-
-
-  <div id="wrapper">
-    <div id="loadingMessage" hidden>🎥 Unable access video stream (please make sure you have a webcam enabled)</div>
-    <div id="output" hidden>
-      <div id="outputMessage" style="height: 100px;"></div>
-      <div hidden style="height: 100px;"><b>UFI:</b> <span id="outputData"></span> <span><button id="btnlinkto">Søg SDS i Google</button></span></div>
-
-
-
+    <div class="col-sm-12 col-md-8 col-lg-6">
+      <div>
+        <button id="scanstart" type="button" class="btn btn-primary">Scan start</button>
+        <button id="scanstop" type="button" class="btn btn-primary" hidden>Scan stop</button>
+      </div>
     </div>
-   
-    <div><canvas id="canvasElement"></canvas></div>
+  </div>
+  <div class="row">
 
-    <div style="margin-top: 10px;">
-      <canvas id="canvasFrame"></canvas>
+    <div class="col-sm-12 col-md-8 col-lg-6">
+
+      <div id="wrapper" class="border rounded p-3 bg-light mt-2">
+        <div id="loadingMessage" hidden>🎥 Unable access video stream (please make sure you have a webcam enabled)</div>
+
+        <div id="output" hidden>
+
+          <div hidden>
+            <b>UFI:</b>
+            <span id="outputData"></span>
+            <span><button id="btnlinkto" type="button" class="btn btn-warning">
+                Søg SDS i Google</button>
+            </span>
+          </div>
+        </div>
+
+        <!-- Her vises video incl læsefelt -->
+        <div><canvas id="canvasElement"></canvas></div>
+
+        <!-- Her vises forstørret udgave af læsefeltet -->
+        <div class="mt-2 mb-4">
+          <canvas id="canvasFrame"></canvas>
+        </div>
+
+        <div>
+          <button id="torchon" type="button" class="btn btn-warning" hidden>Torch on</button>
+          <button id="torchoff" type="button" class="btn btn-secondary" hidden>Torch off</button>
+
+        </div>
+        <div id="regExFound"></div>
+
+        <br />
+
+
+      </div>
+      <div id="debugdiv">
+
+      </div>
     </div>
 
-    <button id="torchon" hidden>Torch on</button>
-    <button id="torchoff" hidden>Torch off</button>
-    <div id="regExFound"></div>
-
-
-
-    <br />
-
-
   </div>
-  <div id="debugdiv">
-
   </div>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/7.0.0/tesseract.min.js'></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+    crossorigin="anonymous"></script>
+
 
 
   <script>
@@ -120,7 +133,7 @@
     const canvasFrameCtx = canvasFrame.getContext("2d");
     const loadingMessage = document.getElementById("loadingMessage");
     const outputContainer = document.getElementById("output");
-   // const outputMessage = document.getElementById("outputMessage");
+    // const outputMessage = document.getElementById("outputMessage");
     const outputData = document.getElementById("outputData");
     const scanstart = document.getElementById("scanstart");
     const scanstop = document.getElementById("scanstop");
@@ -130,7 +143,7 @@
     const torchon = document.getElementById("torchon");
     const torchoff = document.getElementById("torchoff");
 
-    const btnlinkto=document.getElementById("btnlinkto");
+    const btnlinkto = document.getElementById("btnlinkto");
 
 
 
@@ -162,7 +175,6 @@
         workerPath: "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/7.0.0/worker.min.js",
         load_system_dawg: false, //Indlæser systemets standardordbog over gyldige ord på det valgte sprog.
         load_freq_dawg: false, // Indlæser en liste over de mest hyppigt forekommende ord på sproget
-
         tessedit_ocr_engine_mode: '2', // LSTM only - hurtigere
         textord_min_xheight: '8', // Optimeret til lille skrift
         preserve_interword_spaces: '0',
@@ -170,25 +182,33 @@
         language_model_penalty_non_dict_word: '0'
       });
 
-      // OSD_ONLY: '0',
-      // AUTO_OSD: '1',
-      // AUTO_ONLY: '2',
-      // AUTO: '3',
-      // SINGLE_COLUMN: '4',
-      // SINGLE_BLOCK_VERT_TEXT: '5',
-      // SINGLE_BLOCK: '6', //default
-      // SINGLE_LINE: '7',
-      // SINGLE_WORD: '8',
-      // CIRCLE_WORD: '9',
-      // SINGLE_CHAR: '10',
-      // SPARSE_TEXT: '11',
-      // SPARSE_TEXT_OSD: '12',
-      // RAW_LINE: '13',
 
       await worker.setParameters({
         tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"',//valid chars in a UFI Code
         tessedit_pageseg_mode: 7 //SINGLE_Line
       });
+
+      /*
+            ========================
+            tessedit_pageseg_mode:
+            ========================
+            OSD_ONLY: '0',
+            AUTO_OSD: '1',
+            AUTO_ONLY: '2',
+            AUTO: '3',
+            SINGLE_COLUMN: '4',
+            SINGLE_BLOCK_VERT_TEXT: '5',
+            SINGLE_BLOCK: '6', //default
+            SINGLE_LINE: '7',
+            SINGLE_WORD: '8',
+            CIRCLE_WORD: '9',
+            SINGLE_CHAR: '10',
+            SPARSE_TEXT: '11',
+            SPARSE_TEXT_OSD: '12'
+            RAW_LINE: '13',
+      */
+
+
     }
 
 
@@ -395,7 +415,7 @@
             canvasFrame.height = fh * zoom * canvasFrameZoom;
             canvasFrameCtx.drawImage(video, fl + cl, ft + ct, fw, fh, 0, 0, fw * zoom * canvasFrameZoom, fh * zoom * canvasFrameZoom);
 
-             
+
             //her tjekkes for skarphed
             //let PQ=await isImageBlurredpromise(canvasFrame);
 
@@ -417,10 +437,12 @@
                 outputData.parentElement.hidden = false;
                 btnlinkto.parentElement.hidden = false;
                 outputData.innerText = code2;
-                outputData.style.backgroundColor = "lightgreen";
+                //outputData.style.backgroundColor = "lightgreen";
+
+
                 // stopStreamedVideo(video, 4000);//stopper med delay på 4000 millisek
                 stopStreamedVideo(video);
-                console.log({ text, code2 });                
+                console.log({ text, code2 });
               }
               else {
                 //outputData.style.backgroundColor="yellow";
@@ -453,12 +475,12 @@
 
       function stopStreamedVideo(videoElem, delaymillisec = 0) {
         scanningStarted = false;
-        const stream = videoElem.srcObject;
-        const tracks = stream.getTracks();
+        //const stream = videoElem.srcObject;
+        // const tracks = stream.getTracks();
 
-        tracks.forEach(function (track) {
-          track.stop();
-        });
+        // tracks.forEach(function (track) {
+        //   track.stop();
+        // });
 
 
         window.cancelAnimationFrame(myReq);
@@ -477,8 +499,8 @@
         scanningStarted = true;
         loadingMessage.hidden = false;
         outputData.innerText = "";
-        btnlinkto.parentElement.hidden=true;
-        
+        btnlinkto.parentElement.hidden = true;
+
         regExFound.innerText = "";
 
         navigator.mediaDevices.getUserMedia(
@@ -490,7 +512,9 @@
 
           })
           .then(async function (stream) {
+
             video.srcObject = stream;
+
             video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
             video.play();
             // await worker.load();
@@ -526,24 +550,26 @@
                 //debugdiv.innerHTML += "<br/>zoom: false"
               }
 
-              if (capabilities.torch) {
+              if (capabilities.torch || 1 == 1) {
+
                 torchon.hidden = false;
                 torchoff.hidden = false;
 
-                torchon.addEventListener("click", (e) => {
-                  e.preventDefault();
-                  track.applyConstraints({
-                    advanced: [{ torch: true }]
-                  })
-                    .catch(e => console.log(e));
-                });
-                torchoff.addEventListener("click", (e) => {
-                  e.preventDefault();
-                  track.applyConstraints({
-                    advanced: [{ torch: false }]
-                  })
-                    .catch(e => console.log(e));
-                });
+                // torchon.addEventListener("click", (e) => {
+                //   e.preventDefault();
+                //   track.applyConstraints({
+                //     advanced: [{ torch: true }]
+                //   })
+                //     .catch(e => console.log(e));
+                // });
+
+                // torchoff.addEventListener("click", (e) => {
+                //   e.preventDefault();
+                //   track.applyConstraints({
+                //     advanced: [{ torch: false }]
+                //   })
+                //     .catch(e => console.log(e));
+                // });
 
               }
               else {
@@ -555,7 +581,7 @@
 
               }
               else {
-               // debugdiv.innerHTML += "<br/>focusMode: false"
+                // debugdiv.innerHTML += "<br/>focusMode: false"
               }
 
             }
@@ -584,14 +610,38 @@
         //  window.cancelAnimationFrame(myReq);
       });
 
+
+      torchon.addEventListener("click", (e) => {
+        e.preventDefault();
+        torchOn(true);
+      });
+
+
+      function torchOn(ison=true){
+        track.applyConstraints({
+          advanced: [{ torch: ison }]
+        })
+          .catch(e => console.log(e));
+      }
+
+      torchoff.addEventListener("click", (e) => {
+        e.preventDefault();
+        torchOn(false);
+        // track.applyConstraints({
+        //   advanced: [{ torch: false }]
+        // })
+        //   .catch(e => console.log(e));
+      });
+
       btnlinkto.addEventListener("click", (e) => {
         e.preventDefault();
-        const domain="https://google.dk";
-        const parms="/search?q="
+        const domain = "https://google.dk";
+        const parms = "/search?q= "
+
 
         console.log(outputData.innerText)
         //const vindueegenskaber="height=600,width=800,scrollbars=yes,resizable=yes"
-        window.open(domain+parms+outputData.innerText+" filetype:pdf","_blank")
+        window.open(domain + parms + outputData.innerText + " SIKKERHEDSDATABLAD" + " filetype:pdf", "_blank")
       });
 
 
