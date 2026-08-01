@@ -20,6 +20,12 @@
             height: auto;
             background-color: #212529;
         }
+  <style>
+        canvas {
+            max-width: 100%;
+            height: auto;
+            background-color: #212529;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -37,23 +43,20 @@
                     <canvas id="canvas" width="640" height="480" class="rounded border border-secondary shadow-sm mb-4"></canvas>
                     
                     <div class="d-flex flex-wrap justify-content-center align-items-center gap-3">
-                        <!-- Start-knap (synlig fra start) -->
+                        <!-- Start-knap -->
                         <button id="startBtn" class="btn btn-success px-4 py-2 shadow-sm">
                             <i class="bi bi-play-fill me-1"></i> Start
                         </button>
                         
-                        <!-- Stop-knap (skjult fra start med d-none) -->
+                        <!-- Stop-knap (skjult fra start) -->
                         <button id="stopBtn" class="btn btn-danger px-4 py-2 shadow-sm d-none">
                             <i class="bi bi-stop-fill me-1"></i> Stop
                         </button>
 
-                        <!-- Torch-knap (skjult fra start med d-none) -->
-                        <div id="torchContainer" class="form-check form-switch bg-dark text-white rounded px-3 py-2 ms-2 shadow-sm align-middle d-none align-items-center gap-2">
-                            <input class="form-check-input ms-0" type="checkbox" role="switch" id="torchSwitch" class="d-none">
-                            <label class="form-check-label ps-1 user-select-none" for="torchSwitch">
-                                <i id="torchIcon" class="bi bi-lightbulb"></i>
-                            </label>
-                        </div>
+                        <!-- RETTELSE: Torch er nu en ren ikon-knap uden tekst eller checkbox -->
+                        <button id="torchBtn" class="btn btn-dark p-2 d-none shadow-sm rounded-circle" style="width: 42px; height: 42px;" title="Lommelygte">
+                            <i id="torchIcon" class="bi bi-lightbulb"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -74,13 +77,13 @@
     const ctx = canvas.getContext('2d');
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const torchContainer = document.getElementById('torchContainer');
-    const torchSwitch = document.getElementById('torchSwitch');
+    const torchBtn = document.getElementById('torchBtn');
     const torchIcon = document.getElementById('torchIcon');
 
     let mediaStream = null;
     let videoTrack = null;
     let isRunning = false;
+    let isTorchOn = false; // Gemmer tilstanden digitalt i stedet for i en checkbox
 
     function tick() {
         if (!isRunning) return;
@@ -94,12 +97,11 @@
 
     async function startStream() {
         try {
-            const isTorchActive = torchSwitch.checked;
-
+            // Bruger den gemte variabel til at bestemme om lyset skal tænde med det samme
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    advanced: [{ torch: isTorchActive }]
+                    advanced: [{ torch: isTorchOn }]
                 }
             };
 
@@ -115,16 +117,16 @@
             const capabilities = (videoTrack && videoTrack.getCapabilities) ? videoTrack.getCapabilities() : {};
             
             if (capabilities.torch) {
-                torchContainer.classList.replace('d-none', 'd-inline-flex');
-                updateTorchUI(torchSwitch.checked);
+                // Viser den runde ikon-knap hvis det understøttes
+                torchBtn.classList.remove('d-none');
+                updateTorchUI();
             } else {
                 console.log("Torch understøttes ikke på denne enhed.");
-                torchContainer.classList.replace('d-inline-flex', 'd-none');
+                torchBtn.classList.add('d-none');
             }
 
             isRunning = true;
             
-            // RETTELSE: Skjul Start-knappen og vis Stop-knappen
             startBtn.classList.add('d-none');
             stopBtn.classList.remove('d-none');
 
@@ -138,28 +140,27 @@
     async function toggleTorch() {
         if (!videoTrack || !isRunning) return;
 
-        const shouldTurnOn = torchSwitch.checked;
+        // Skifter tilstanden i JavaScript variablen
+        isTorchOn = !isTorchOn;
 
         try {
             await videoTrack.applyConstraints({
-                advanced: [{ torch: shouldTurnOn }]
+                advanced: [{ torch: isTorchOn }]
             });
-            updateTorchUI(shouldTurnOn);
+            updateTorchUI();
         } catch (err) {
             console.error("Kunne ikke ændre torch state:", err);
-            torchSwitch.checked = !shouldTurnOn;
+            isTorchOn = !isTorchOn; // Rul tilbage ved hardware-fejl
         }
     }
 
-    function updateTorchUI(isOn) {
-        if (isOn) {
-            torchIcon.className = "bi bi-lightbulb-fill text-warning";
-            torchContainer.classList.replace('bg-dark', 'bg-warning-subtle');
-            torchContainer.classList.replace('text-white', 'text-dark');
+    function updateTorchUI() {
+        if (isTorchOn) {
+            torchIcon.className = "bi bi-lightbulb-fill text-dark"; // Tændt pære-ikon
+            torchBtn.className = "btn btn-warning p-2 shadow-sm rounded-circle"; // Gul knap-baggrund
         } else {
-            torchIcon.className = "bi bi-lightbulb text-secondary";
-            torchContainer.classList.replace('bg-warning-subtle', 'bg-dark');
-            torchContainer.classList.replace('text-dark', 'text-white');
+            torchIcon.className = "bi bi-lightbulb text-secondary"; // Slukket pære-ikon
+            torchBtn.className = "btn btn-dark p-2 shadow-sm rounded-circle"; // Mørk knap-baggrund
         }
     }
 
@@ -182,17 +183,14 @@
         video.srcObject = null;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // RETTELSE: Vis Start-knappen igen, og skjul Stop samt lommelygte
         startBtn.classList.remove('d-none');
         stopBtn.classList.add('d-none');
-        
-        torchContainer.classList.remove('d-inline-flex');
-        torchContainer.classList.add('d-none');
+        torchBtn.classList.add('d-none'); // Skjul lommelygte-knappen igen
     }
 
     startBtn.addEventListener('click', startStream);
     stopBtn.addEventListener('click', stopStream);
-    torchSwitch.addEventListener('change', toggleTorch);
+    torchBtn.addEventListener('click', toggleTorch); // Lytter nu efter almindeligt klik på knappen
 </script>
 
 </body>
