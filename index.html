@@ -555,40 +555,23 @@
                 torchon.hidden = false;
                 torchoff.hidden = false;
 
-                      torchon.addEventListener("click", (e) => {
-        e.preventDefault();
-        torchOn(true);
-      });
+                torchon.addEventListener("click", (e) => {
+                  e.preventDefault();
+                  torchOn(true);
+                });
 
-      torchoff.addEventListener("click", (e) => {
-        e.preventDefault();        
-        torchOn(false);
-      });
+                torchoff.addEventListener("click", (e) => {
+                  e.preventDefault();
+                  torchOn(false);
+                });
 
-      function torchOn(ison=true){
-        //alert(ison)
-        track.applyConstraints({
-          advanced: [{ torch: ison }]
-        })
-          .catch(e => console.log(e));
-      }
-
-                // torchon.addEventListener("click", (e) => {
-                //   e.preventDefault();
+                // function torchOn(ison = true) {
+                //   //alert(ison)
                 //   track.applyConstraints({
-                //     advanced: [{ torch: true }]
+                //     advanced: [{ torch: ison }]
                 //   })
                 //     .catch(e => console.log(e));
-                // });
-
-                // torchoff.addEventListener("click", (e) => {
-                //   e.preventDefault();
-                //   track.applyConstraints({
-                //     advanced: [{ torch: false }]
-                //   })
-                //     .catch(e => console.log(e));
-                // });
-
+                // }
               }
               else {
                 //debugdiv.innerHTML += "<br/>torch: false"
@@ -617,7 +600,14 @@
         return _ufisInString[0];//firs ufi match
       }
 
-
+                function torchOn(ison = true) {
+                  //alert(ison)
+                  track.applyConstraints({
+                    advanced: [{ torch: ison }]
+                  })
+                    .catch(e => console.log(e));
+                }
+                
 
       scanstart.addEventListener("click", (e) => {
         e.preventDefault();
