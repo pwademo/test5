@@ -20,12 +20,6 @@
             height: auto;
             background-color: #212529;
         }
-  <style>
-        canvas {
-            max-width: 100%;
-            height: auto;
-            background-color: #212529;
-        }
     </style>
 </head>
 <body class="bg-light">
@@ -53,7 +47,7 @@
                             <i class="bi bi-stop-fill me-1"></i> Stop
                         </button>
 
-                        <!-- RETTELSE: Torch er nu en ren ikon-knap uden tekst eller checkbox -->
+                        <!-- Torch ikon-knap uten tekst eller checkbox -->
                         <button id="torchBtn" class="btn btn-dark p-2 d-none shadow-sm rounded-circle" style="width: 42px; height: 42px;" title="Lommelygte">
                             <i id="torchIcon" class="bi bi-lightbulb"></i>
                         </button>
@@ -70,7 +64,6 @@
    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
 
-
 <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -83,7 +76,8 @@
     let mediaStream = null;
     let videoTrack = null;
     let isRunning = false;
-    let isTorchOn = false; // Gemmer tilstanden digitalt i stedet for i en checkbox
+    let isTorchOn = false;
+    let autoStopTimer = null; // Variabel til at holde styr på vores 5-minutters timer
 
     function tick() {
         if (!isRunning) return;
@@ -97,7 +91,6 @@
 
     async function startStream() {
         try {
-            // Bruger den gemte variabel til at bestemme om lyset skal tænde med det samme
             const constraints = {
                 video: {
                     facingMode: 'environment',
@@ -117,7 +110,6 @@
             const capabilities = (videoTrack && videoTrack.getCapabilities) ? videoTrack.getCapabilities() : {};
             
             if (capabilities.torch) {
-                // Viser den runde ikon-knap hvis det understøttes
                 torchBtn.classList.remove('d-none');
                 updateTorchUI();
             } else {
@@ -130,6 +122,12 @@
             startBtn.classList.add('d-none');
             stopBtn.classList.remove('d-none');
 
+            // NYT: Start 1-minutters timer til automatisk stop (1 * 60 * 1000 ms)
+            autoStopTimer = setTimeout(() => {
+                console.log("Automatisk stop aktiveret efter x minutter.");
+                stopStream();
+            }, 60000);
+
             window.requestAnimationFrame(tick);
         } catch (err) {
             console.error("Fejl ved start af kamera:", err);
@@ -140,7 +138,6 @@
     async function toggleTorch() {
         if (!videoTrack || !isRunning) return;
 
-        // Skifter tilstanden i JavaScript variablen
         isTorchOn = !isTorchOn;
 
         try {
@@ -150,22 +147,28 @@
             updateTorchUI();
         } catch (err) {
             console.error("Kunne ikke ændre torch state:", err);
-            isTorchOn = !isTorchOn; // Rul tilbage ved hardware-fejl
+            isTorchOn = !isTorchOn;
         }
     }
 
     function updateTorchUI() {
         if (isTorchOn) {
-            torchIcon.className = "bi bi-lightbulb-fill text-dark"; // Tændt pære-ikon
-            torchBtn.className = "btn btn-warning p-2 shadow-sm rounded-circle"; // Gul knap-baggrund
+            torchIcon.className = "bi bi-lightbulb-fill text-dark";
+            torchBtn.className = "btn btn-warning p-2 shadow-sm rounded-circle";
         } else {
-            torchIcon.className = "bi bi-lightbulb text-secondary"; // Slukket pære-ikon
-            torchBtn.className = "btn btn-dark p-2 shadow-sm rounded-circle"; // Mørk knap-baggrund
+            torchIcon.className = "bi bi-lightbulb text-secondary";
+            torchBtn.className = "btn btn-dark p-2 shadow-sm rounded-circle";
         }
     }
 
     async function stopStream() {
         isRunning = false;
+
+        // NYT: Ryd timeren, så den ikke forsøger at lukke et allerede lukket kamera ned senere
+        if (autoStopTimer) {
+            clearTimeout(autoStopTimer);
+            autoStopTimer = null;
+        }
 
         if (videoTrack) {
             try {
@@ -185,12 +188,12 @@
 
         startBtn.classList.remove('d-none');
         stopBtn.classList.add('d-none');
-        torchBtn.classList.add('d-none'); // Skjul lommelygte-knappen igen
+        torchBtn.classList.add('d-none');
     }
 
     startBtn.addEventListener('click', startStream);
     stopBtn.addEventListener('click', stopStream);
-    torchBtn.addEventListener('click', toggleTorch); // Lytter nu efter almindeligt klik på knappen
+    torchBtn.addEventListener('click', toggleTorch);
 </script>
 
 </body>
