@@ -1,29 +1,66 @@
-<!DOCTYPE html>
+
+<!DOCTYPE html>  
 <html lang="da">
 <head>
     <meta charset="UTF-8">
-    <title>Video på Canvas med Torch Toggle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video på Canvas med Bootstrap 5</title>
+    <!-- Bootstrap 5 CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+ 
+    <!-- Bootstrap Icons -->
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 20px; }
-        canvas { border: 2px solid #333; max-width: 100%; height: auto; display: block; margin: 10px auto; }
-        button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; }
-
-        /* Torch-knappen skjules som standard og vises kun via JS hvis understøttet */
-        #torchBtn { display: none; background-color: #fff; border: 1px solid #eee; font-weight: bold; }
-        #torchBtn.active { background-color: #f6ee18; color: white; }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            background-color: #212529;
+        }
+        #torchContainer {
+            display: none;
+        }
     </style>
 </head>
-<body>
+<body class="bg-light">
 
-    <h1>Video Stream på Canvas</h1>
-    <div>
-        <button id="startBtn">Start</button>
-        <button id="stopBtn" disabled>Stop</button>
-        <button id="torchBtn">Torch: OFF</button>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white text-center py-3">
+                    <h1 class="h4 mb-0"><i class="bi bi-camera-video-fill me-2"></i>Video Stream på Canvas</h1>
+                </div>
+                
+                <div class="card-body p-3 text-center">
+                    <canvas id="canvas" width="640" height="480" class="rounded border border-secondary shadow-sm mb-4"></canvas>
+                    
+                    <div class="d-flex flex-wrap justify-content-center align-items-center gap-3">
+                        <button id="startBtn" class="btn btn-success px-4 py-2 shadow-sm">
+                            <i class="bi bi-play-fill me-1"></i> Start
+                        </button>
+                        <button id="stopBtn" class="btn btn-danger px-4 py-2 shadow-sm" disabled>
+                            <i class="bi bi-stop-fill me-1"></i> Stop
+                        </button>
+
+                        <div  id="torchContainer" class="form-check form-switch bg-dark text-white rounded px-3 py-2 ms-2 shadow-sm align-middle d-inline-flex align-items-center gap-2 d-none">
+                            <input class="form-check-input ms-0" type="checkbox" role="switch" id="torchSwitch">
+                            <label class="form-check-label ps-1 user-select-none" for="torchSwitch">
+                                <i id="torchIcon" class="bi bi-lightbulb"></i> Lommelygte
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
+</div>
 
-    <video id="video" autoplay playsinline style="display:none;"></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
+<video id="video" autoplay playsinline style="display:none;"></video>
+
+   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
 
 <script>
     const video = document.getElementById('video');
@@ -31,12 +68,13 @@
     const ctx = canvas.getContext('2d');
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const torchBtn = document.getElementById('torchBtn');
+    const torchContainer = document.getElementById('torchContainer');
+    const torchSwitch = document.getElementById('torchSwitch');
+    const torchIcon = document.getElementById('torchIcon');
 
     let mediaStream = null;
-    let track = null;
+    let videoTrack = null; // Ændret fra track til videoTrack for klarhed
     let isRunning = false;
-    let torchOn = false; // Holder styr på toggle-knappens tilstand
 
     function tick() {
         if (!isRunning) return;
@@ -50,11 +88,12 @@
 
     async function startStream() {
         try {
-            // Vi starter kameraet. Vi sender torch-ønsket med baseret på knappens nuværende tilstand (torchOn)
+            const isTorchActive = torchSwitch.checked;
+
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    advanced: [{ torch: torchOn }]
+                    advanced: [{ torch: isTorchActive }]
                 }
             };
 
@@ -62,19 +101,21 @@
             video.srcObject = mediaStream;
             await video.play();
 
-            // Hent det aktive videotrack
-            track = mediaStream.getVideoTracks()[0];
+            // RETTELSE: Vi snupper det FØRSTE element i arrayet af videotrack
+            const tracks = mediaStream.getVideoTracks();
+            if (tracks.length > 0) {
+                videoTrack = tracks[0];
+            }
 
-            // Tjek om enheden understøtter torch
-            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+            // Tjek support for torch på det specifikke spor
+            const capabilities = (videoTrack && videoTrack.getCapabilities) ? videoTrack.getCapabilities() : {};
             
             if (capabilities.torch) {
-                // Enheden understøtter torch! Vis knappen
-                torchBtn.style.display = 'inline-block';
-                updateTorchButtonUI();
+                torchContainer.style.setProperty('display', 'inline-flex', 'important');
+                updateTorchUI(torchSwitch.checked);
             } else {
-                console.log("Torch (lommelygte) understøttes ikke på denne enhed.");
-                torchBtn.style.display = 'none';
+                console.log("Torch understøttes ikke på denne enhed.");
+                torchContainer.style.setProperty('display', 'none', 'important');
             }
 
             isRunning = true;
@@ -84,68 +125,67 @@
             window.requestAnimationFrame(tick);
         } catch (err) {
             console.error("Fejl ved start af kamera:", err);
-            alert("Kunne ikke starte videostream.");
+            alert("Kunne ikke starte videostream. Tjek kameratilladelser.");
         }
     }
 
     async function toggleTorch() {
-        if (!track || !isRunning) return;
+        if (!videoTrack || !isRunning) return;
 
-        // Skift tilstand (ON/OFF)
-        torchOn = !torchOn;
+        const shouldTurnOn = torchSwitch.checked;
 
         try {
-            // Anvend den nye constraint direkte på det kørende videotrack
-            await track.applyConstraints({
-                advanced: [{ torch: torchOn }]
+            await videoTrack.applyConstraints({
+                advanced: [{ torch: shouldTurnOn }]
             });
-            updateTorchButtonUI();
+            updateTorchUI(shouldTurnOn);
         } catch (err) {
-            console.error("Kunne ikke ændre torch state under kørsel:", err);
-            torchOn = !torchOn; // Rul tilstand tilbage ved fejl
+            console.error("Kunne ikke ændre torch state:", err);
+            torchSwitch.checked = !shouldTurnOn;
         }
     }
 
-    function updateTorchButtonUI() {
-        if (torchOn) {
-            torchBtn.textContent = "ON";
-            torchBtn.classList.add('active');
+    function updateTorchUI(isOn) {
+        if (isOn) {
+            torchIcon.className = "bi bi-lightbulb-fill text-warning";
+            torchContainer.classList.replace('bg-dark', 'bg-warning-subtle');
+            torchContainer.classList.replace('text-white', 'text-dark');
         } else {
-            torchBtn.textContent = "OFF";
-            torchBtn.classList.remove('active');
+            torchIcon.className = "bi bi-lightbulb text-secondary";
+            torchContainer.classList.replace('bg-warning-subtle', 'bg-dark');
+            torchContainer.classList.replace('text-dark', 'text-white');
         }
     }
 
     async function stopStream() {
         isRunning = false;
 
-        if (track) {
-            // Sluk altid lommelygten fysisk inden vi lukker sporet
+        // RETTELSE: Vi slukker og stopper nu korrekt på det specifikke spor
+        if (videoTrack) {
             try {
-                await track.applyConstraints({ advanced: [{ torch: false }] });
-            } catch (e) {
-                // Ignorer fejl ved tvungen slukning under stop
-            }
-            track.stop();
+                await videoTrack.applyConstraints({ advanced: [{ torch: false }] });
+            } catch (e) {}
+            videoTrack.stop();
+            videoTrack = null;
         }
 
         if (mediaStream) {
             mediaStream.getTracks().forEach(t => t.stop());
+            mediaStream = null;
         }
 
         video.srcObject = null;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Nulstil knapper, men bevar knappens `torchOn` state, så den huskes til næste "Start"
         startBtn.disabled = false;
         stopBtn.disabled = true;
-        torchBtn.style.display = 'none'; // Skjul indtil kameraet starter igen og vi tjekker support på ny
+        
+        torchContainer.style.setProperty('display', 'none', 'important');
     }
 
-    // Eventlisteners for knapperne
     startBtn.addEventListener('click', startStream);
     stopBtn.addEventListener('click', stopStream);
-    torchBtn.addEventListener('click', toggleTorch);
+    torchSwitch.addEventListener('change', toggleTorch);
 </script>
 
 </body>
