@@ -475,12 +475,19 @@
 
       function stopStreamedVideo(videoElem, delaymillisec = 0) {
         scanningStarted = false;
-        //const stream = videoElem.srcObject;
-        // const tracks = stream.getTracks();
+        const stream = videoElem.srcObject;
+        const tracks = stream.getVideoTracks()[0];;
 
-        // tracks.forEach(function (track) {
-        //   track.stop();
-        // });
+
+        try {
+          videoTrack.applyConstraints({
+            advanced: [{ torch: false }]
+          });
+        } catch (err) {
+          console.log("Fejl ved slukning af torch:", err);
+        }
+        // 2. Stop alle videoredskaber/streams
+        stream.getTracks().forEach(track => track.stop());
 
 
         window.cancelAnimationFrame(myReq);
@@ -565,13 +572,13 @@
                   torchOn(false);
                 });
 
-                // function torchOn(ison = true) {
-                //   //alert(ison)
-                //   track.applyConstraints({
-                //     advanced: [{ torch: ison }]
-                //   })
-                //     .catch(e => console.log(e));
-                // }
+                function torchOn(ison = true) {
+                  //alert(ison)
+                  track.applyConstraints({
+                    advanced: [{ torch: ison }]
+                  })
+                    .catch(e => console.log(e));
+                }
               }
               else {
                 //debugdiv.innerHTML += "<br/>torch: false"
@@ -600,14 +607,8 @@
         return _ufisInString[0];//firs ufi match
       }
 
-                function torchOn(ison = true) {
-                  //alert(ison)
-                  track.applyConstraints({
-                    advanced: [{ torch: ison }]
-                  })
-                    .catch(e => console.log(e));
-                }
-                
+
+
 
       scanstart.addEventListener("click", (e) => {
         e.preventDefault();
