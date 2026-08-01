@@ -550,7 +550,7 @@
                 //debugdiv.innerHTML += "<br/>zoom: false"
               }
 
-              if (capabilities.torch || 1 == 1) {
+              if (capabilities.torch) {
 
                 torchon.hidden = false;
                 torchoff.hidden = false;
@@ -599,6 +599,8 @@
         return _ufisInString[0];//firs ufi match
       }
 
+
+
       scanstart.addEventListener("click", (e) => {
         e.preventDefault();
         startScanner();
@@ -610,28 +612,25 @@
         //  window.cancelAnimationFrame(myReq);
       });
 
-
       torchon.addEventListener("click", (e) => {
         e.preventDefault();
         torchOn(true);
       });
 
+      torchoff.addEventListener("click", (e) => {
+        e.preventDefault();
+        
+        torchOn(false);
+      });
 
       function torchOn(ison=true){
+        alert(ison)
         track.applyConstraints({
           advanced: [{ torch: ison }]
         })
           .catch(e => console.log(e));
       }
 
-      torchoff.addEventListener("click", (e) => {
-        e.preventDefault();
-        torchOn(false);
-        // track.applyConstraints({
-        //   advanced: [{ torch: false }]
-        // })
-        //   .catch(e => console.log(e));
-      });
 
       btnlinkto.addEventListener("click", (e) => {
         e.preventDefault();
