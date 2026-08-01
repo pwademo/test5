@@ -555,6 +555,24 @@
                 torchon.hidden = false;
                 torchoff.hidden = false;
 
+                      torchon.addEventListener("click", (e) => {
+        e.preventDefault();
+        torchOn(true);
+      });
+
+      torchoff.addEventListener("click", (e) => {
+        e.preventDefault();        
+        torchOn(false);
+      });
+
+      function torchOn(ison=true){
+        //alert(ison)
+        track.applyConstraints({
+          advanced: [{ torch: ison }]
+        })
+          .catch(e => console.log(e));
+      }
+
                 // torchon.addEventListener("click", (e) => {
                 //   e.preventDefault();
                 //   track.applyConstraints({
@@ -612,24 +630,7 @@
         //  window.cancelAnimationFrame(myReq);
       });
 
-      torchon.addEventListener("click", (e) => {
-        e.preventDefault();
-        torchOn(true);
-      });
 
-      torchoff.addEventListener("click", (e) => {
-        e.preventDefault();
-        
-        torchOn(false);
-      });
-
-      function torchOn(ison=true){
-        alert(ison)
-        track.applyConstraints({
-          advanced: [{ torch: ison }]
-        })
-          .catch(e => console.log(e));
-      }
 
 
       btnlinkto.addEventListener("click", (e) => {
