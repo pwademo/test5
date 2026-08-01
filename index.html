@@ -7,9 +7,10 @@
         body { font-family: sans-serif; text-align: center; margin-top: 20px; }
         canvas { border: 2px solid #333; max-width: 100%; height: auto; display: block; margin: 10px auto; }
         button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; }
+
         /* Torch-knappen skjules som standard og vises kun via JS hvis understøttet */
-        #torchBtn { display: none; background-color: #ffeb3b; border: 1px solid #cddc39; font-weight: bold; }
-        #torchBtn.active { background-color: #ff9800; color: white; }
+        #torchBtn { display: none; background-color: #fff; border: 1px solid #eee; font-weight: bold; }
+        #torchBtn.active { background-color: #f6ee18; color: white; }
     </style>
 </head>
 <body>
@@ -107,10 +108,10 @@
 
     function updateTorchButtonUI() {
         if (torchOn) {
-            torchBtn.textContent = "Torch: ON";
+            torchBtn.textContent = "ON";
             torchBtn.classList.add('active');
         } else {
-            torchBtn.textContent = "Torch: OFF";
+            torchBtn.textContent = "OFF";
             torchBtn.classList.remove('active');
         }
     }
