@@ -2,11 +2,14 @@
 <html lang="da">
 <head>
     <meta charset="UTF-8">
-    <title>Video på Canvas med Lommelygte</title>
+    <title>Video på Canvas med Torch Toggle</title>
     <style>
         body { font-family: sans-serif; text-align: center; margin-top: 20px; }
         canvas { border: 2px solid #333; max-width: 100%; height: auto; display: block; margin: 10px auto; }
         button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; }
+        /* Torch-knappen skjules som standard og vises kun via JS hvis understøttet */
+        #torchBtn { display: none; background-color: #ffeb3b; border: 1px solid #cddc39; font-weight: bold; }
+        #torchBtn.active { background-color: #ff9800; color: white; }
     </style>
 </head>
 <body>
@@ -15,6 +18,7 @@
     <div>
         <button id="startBtn">Start</button>
         <button id="stopBtn" disabled>Stop</button>
+        <button id="torchBtn">Torch: OFF</button>
     </div>
 
     <video id="video" autoplay playsinline style="display:none;"></video>
@@ -26,15 +30,16 @@
     const ctx = canvas.getContext('2d');
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
+    const torchBtn = document.getElementById('torchBtn');
 
     let mediaStream = null;
     let track = null;
     let isRunning = false;
+    let torchOn = false; // Holder styr på toggle-knappens tilstand
 
     function tick() {
         if (!isRunning) return;
 
-        // Her kan du tilgå hver enkelt frame på lærredet eller direkte fra video-elementet
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
@@ -44,11 +49,11 @@
 
     async function startStream() {
         try {
-            // Anmod om kamera med bagudvendt foretrukket og forsøg at tænde torch
+            // Vi starter kameraet. Vi sender torch-ønsket med baseret på knappens nuværende tilstand (torchOn)
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    advanced: [{ torch: true }]
+                    advanced: [{ torch: torchOn }]
                 }
             };
 
@@ -56,12 +61,19 @@
             video.srcObject = mediaStream;
             await video.play();
 
+            // Hent det aktive videotrack
             track = mediaStream.getVideoTracks()[0];
 
-            // Tjek om torch rent faktisk blev tændt/understøttes
+            // Tjek om enheden understøtter torch
             const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-            if (!capabilities.torch) {
+            
+            if (capabilities.torch) {
+                // Enheden understøtter torch! Vis knappen
+                torchBtn.style.display = 'inline-block';
+                updateTorchButtonUI();
+            } else {
                 console.log("Torch (lommelygte) understøttes ikke på denne enhed.");
+                torchBtn.style.display = 'none';
             }
 
             isRunning = true;
@@ -75,15 +87,43 @@
         }
     }
 
+    async function toggleTorch() {
+        if (!track || !isRunning) return;
+
+        // Skift tilstand (ON/OFF)
+        torchOn = !torchOn;
+
+        try {
+            // Anvend den nye constraint direkte på det kørende videotrack
+            await track.applyConstraints({
+                advanced: [{ torch: torchOn }]
+            });
+            updateTorchButtonUI();
+        } catch (err) {
+            console.error("Kunne ikke ændre torch state under kørsel:", err);
+            torchOn = !torchOn; // Rul tilstand tilbage ved fejl
+        }
+    }
+
+    function updateTorchButtonUI() {
+        if (torchOn) {
+            torchBtn.textContent = "Torch: ON";
+            torchBtn.classList.add('active');
+        } else {
+            torchBtn.textContent = "Torch: OFF";
+            torchBtn.classList.remove('active');
+        }
+    }
+
     async function stopStream() {
         isRunning = false;
 
         if (track) {
-            // Sluk torch før sporet lukkes (hvis understøttet)
+            // Sluk altid lommelygten fysisk inden vi lukker sporet
             try {
                 await track.applyConstraints({ advanced: [{ torch: false }] });
             } catch (e) {
-                // Ignorer fejl ved slukning af torch
+                // Ignorer fejl ved tvungen slukning under stop
             }
             track.stop();
         }
@@ -95,12 +135,16 @@
         video.srcObject = null;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // Nulstil knapper, men bevar knappens `torchOn` state, så den huskes til næste "Start"
         startBtn.disabled = false;
         stopBtn.disabled = true;
+        torchBtn.style.display = 'none'; // Skjul indtil kameraet starter igen og vi tjekker support på ny
     }
 
+    // Eventlisteners for knapperne
     startBtn.addEventListener('click', startStream);
     stopBtn.addEventListener('click', stopStream);
+    torchBtn.addEventListener('click', toggleTorch);
 </script>
 
 </body>
