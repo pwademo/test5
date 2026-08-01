@@ -5,19 +5,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video på Canvas med Bootstrap 5</title>
+   <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script> -->
+
+
+
     <!-- Bootstrap 5 CSS -->
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
  
     <!-- Bootstrap Icons -->
    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <style>
+   <style>
         canvas {
             max-width: 100%;
             height: auto;
             background-color: #212529;
-        }
-        #torchContainer {
-            display: none;
         }
     </style>
 </head>
@@ -36,17 +37,21 @@
                     <canvas id="canvas" width="640" height="480" class="rounded border border-secondary shadow-sm mb-4"></canvas>
                     
                     <div class="d-flex flex-wrap justify-content-center align-items-center gap-3">
+                        <!-- Start-knap (synlig fra start) -->
                         <button id="startBtn" class="btn btn-success px-4 py-2 shadow-sm">
                             <i class="bi bi-play-fill me-1"></i> Start
                         </button>
-                        <button id="stopBtn" class="btn btn-danger px-4 py-2 shadow-sm" disabled>
+                        
+                        <!-- Stop-knap (skjult fra start med d-none) -->
+                        <button id="stopBtn" class="btn btn-danger px-4 py-2 shadow-sm d-none">
                             <i class="bi bi-stop-fill me-1"></i> Stop
                         </button>
 
-                        <div  id="torchContainer" class="form-check form-switch bg-dark text-white rounded px-3 py-2 ms-2 shadow-sm align-middle d-inline-flex align-items-center gap-2 d-none">
+                        <!-- Torch-knap (skjult fra start med d-none) -->
+                        <div id="torchContainer" class="form-check form-switch bg-dark text-white rounded px-3 py-2 ms-2 shadow-sm align-middle d-none align-items-center gap-2">
                             <input class="form-check-input ms-0" type="checkbox" role="switch" id="torchSwitch">
                             <label class="form-check-label ps-1 user-select-none" for="torchSwitch">
-                                <i id="torchIcon" class="bi bi-lightbulb"></i> 
+                                <i id="torchIcon" class="bi bi-lightbulb"></i>
                             </label>
                         </div>
                     </div>
@@ -62,6 +67,7 @@
    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
 
+
 <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -73,7 +79,7 @@
     const torchIcon = document.getElementById('torchIcon');
 
     let mediaStream = null;
-    let videoTrack = null; // Ændret fra track til videoTrack for klarhed
+    let videoTrack = null;
     let isRunning = false;
 
     function tick() {
@@ -101,26 +107,26 @@
             video.srcObject = mediaStream;
             await video.play();
 
-            // RETTELSE: Vi snupper det FØRSTE element i arrayet af videotrack
             const tracks = mediaStream.getVideoTracks();
             if (tracks.length > 0) {
                 videoTrack = tracks[0];
             }
 
-            // Tjek support for torch på det specifikke spor
             const capabilities = (videoTrack && videoTrack.getCapabilities) ? videoTrack.getCapabilities() : {};
             
             if (capabilities.torch) {
-                torchContainer.style.setProperty('display', 'inline-flex', 'important');
+                torchContainer.classList.replace('d-none', 'd-inline-flex');
                 updateTorchUI(torchSwitch.checked);
             } else {
                 console.log("Torch understøttes ikke på denne enhed.");
-                torchContainer.style.setProperty('display', 'none', 'important');
+                torchContainer.classList.replace('d-inline-flex', 'd-none');
             }
 
             isRunning = true;
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
+            
+            // RETTELSE: Skjul Start-knappen og vis Stop-knappen
+            startBtn.classList.add('d-none');
+            stopBtn.classList.remove('d-none');
 
             window.requestAnimationFrame(tick);
         } catch (err) {
@@ -160,7 +166,6 @@
     async function stopStream() {
         isRunning = false;
 
-        // RETTELSE: Vi slukker og stopper nu korrekt på det specifikke spor
         if (videoTrack) {
             try {
                 await videoTrack.applyConstraints({ advanced: [{ torch: false }] });
@@ -177,10 +182,12 @@
         video.srcObject = null;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
+        // RETTELSE: Vis Start-knappen igen, og skjul Stop samt lommelygte
+        startBtn.classList.remove('d-none');
+        stopBtn.classList.add('d-none');
         
-        torchContainer.style.setProperty('display', 'none', 'important');
+        torchContainer.classList.remove('d-inline-flex');
+        torchContainer.classList.add('d-none');
     }
 
     startBtn.addEventListener('click', startStream);
