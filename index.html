@@ -1,57 +1,89 @@
-
-<!DOCTYPE html>  
+<!DOCTYPE html>
 <html lang="da">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video på Canvas med Bootstrap 5</title>
-   <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script> -->
-
 
 
     <!-- Bootstrap 5 CSS -->
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
- 
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+
     <!-- Bootstrap Icons -->
-   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-   <style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script> -->
+
+
+
+
+    <style>
         canvas {
             max-width: 100%;
             height: auto;
             background-color: #212529;
         }
+        /* Container til at placere den røde søger-ramme oven på video-canvas */
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+        }
+        /* Den visuelle røde scanner-ramme i midten */
+        .scanner-target {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 3px solid #dc3545;
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+            pointer-events: none;
+            display: none;
+        }
     </style>
 </head>
 <body class="bg-light">
 
-<div class="container py-5">
+<div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
             
-            <div class="card shadow">
+            <!-- 1. Hovedkort: Video Stream -->
+            <div class="card shadow mb-4">
                 <div class="card-header bg-primary text-white text-center py-3">
                     <h1 class="h4 mb-0"><i class="bi bi-camera-video-fill me-2"></i>Video Stream på Canvas</h1>
                 </div>
                 
                 <div class="card-body p-3 text-center">
-                    <canvas id="canvas" width="640" height="480" class="rounded border border-secondary shadow-sm mb-4"></canvas>
+                    <div class="canvas-container mb-4">
+                        <canvas id="canvas" width="640" height="480" class="rounded border border-secondary shadow-sm"></canvas>
+                        <div id="scannerTarget" class="scanner-target"></div>
+                    </div>
                     
                     <div class="d-flex flex-wrap justify-content-center align-items-center gap-3">
-                        <!-- Start-knap -->
                         <button id="startBtn" class="btn btn-success px-4 py-2 shadow-sm">
                             <i class="bi bi-play-fill me-1"></i> Start
                         </button>
                         
-                        <!-- Stop-knap (skjult fra start) -->
                         <button id="stopBtn" class="btn btn-danger px-4 py-2 shadow-sm d-none">
                             <i class="bi bi-stop-fill me-1"></i> Stop
                         </button>
 
-                        <!-- Torch ikon-knap uten tekst eller checkbox -->
                         <button id="torchBtn" class="btn btn-dark p-2 d-none shadow-sm rounded-circle" style="width: 42px; height: 42px;" title="Lommelygte">
                             <i id="torchIcon" class="bi bi-lightbulb"></i>
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- 2. Kort: Forstørret Scanner-felt -->
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white text-center py-2">
+                    <h2 class="h5 mb-0"><i class="bi bi-zoom-in me-2"></i>Forstørret Scanner-felt (UFI-Zone)</h2>
+                </div>
+                <div class="card-body p-3 text-center bg-dark rounded-bottom">
+                    <canvas id="zoomCanvas" class="rounded border border-light shadow-sm"></canvas>
                 </div>
             </div>
 
@@ -61,13 +93,31 @@
 
 <video id="video" autoplay playsinline style="display:none;"></video>
 
-   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-
+<!-- Bootstrap 5 JS Bundle -->
+<!-- <script src="https://jsdelivr.net"></script> -->
 
 <script>
+    // Centralt konfigurationsobjekt til nem tilpasning
+    const CONFIG = {
+        mainCanvasWidth: 640,    // Bredde på primær kilde-canvas
+        mainCanvasHeight: 480,   // Højde på primær kilde-canvas
+        targetWidth: 320,        // Bredere scanner-felt til UFI-kode
+        targetHeight: 40,        // Lavere scanner-felt (ca. 1/2 af før)
+        zoomFactor: 2.5,         // Forhøjet forstørrelse for bedre læsbarhed
+        autoStopTimeMS: 300000,  // Timeout (5 minutter = 300.000 ms)
+        facingMode: 'environment'// Bruger bagsidekamera
+    };
+
+    console.log("[Kamera-Log] Scriptet er indlæst med CONFIG:", CONFIG);
+
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
+    
+    const zoomCanvas = document.getElementById('zoomCanvas');
+    const zoomCtx = zoomCanvas.getContext('2d');
+    const scannerTarget = document.getElementById('scannerTarget');
+
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const torchBtn = document.getElementById('torchBtn');
@@ -77,23 +127,54 @@
     let videoTrack = null;
     let isRunning = false;
     let isTorchOn = false;
-    let autoStopTimer = null; // Variabel til at holde styr på vores 5-minutters timer
+    let autoStopTimer = null;
+    let tickCounter = 0;
+
+    // Initialiser dimensioner ud fra CONFIG
+    canvas.width = CONFIG.mainCanvasWidth;
+    canvas.height = CONFIG.mainCanvasHeight;
+
+    // Omregner pixels til procent af hoved-canvas for den røde rammes CSS overlay
+    scannerTarget.style.width = ((CONFIG.targetWidth / CONFIG.mainCanvasWidth) * 100) + '%';
+    scannerTarget.style.height = ((CONFIG.targetHeight / CONFIG.mainCanvasHeight) * 100) + '%';
+
+    // Tilpas zoomCanvas-størrelsen dynamisk baseret på CONFIG udklip * zoomfaktor
+    zoomCanvas.width = CONFIG.targetWidth * CONFIG.zoomFactor;
+    zoomCanvas.height = CONFIG.targetHeight * CONFIG.zoomFactor;
 
     function tick() {
         if (!isRunning) return;
 
+        tickCounter++;
+
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Find centret af hoved-canvas baseret på CONFIG-størrelserne
+            const sourceX = (canvas.width - CONFIG.targetWidth) / 2;
+            const sourceY = (canvas.height - CONFIG.targetHeight) / 2;
+
+            // Klip og forstør
+            zoomCtx.drawImage(
+                canvas, 
+                sourceX, sourceY, CONFIG.targetWidth, CONFIG.targetHeight, 
+                0, 0, zoomCanvas.width, zoomCanvas.height    
+            );
+        } else {
+            if (tickCounter % 60 === 0) {
+                console.warn(`[Kamera-Log] tick() venter på data. Status: ${video.readyState}`);
+            }
         }
 
         window.requestAnimationFrame(tick);
     }
 
     async function startStream() {
+        console.log("[Kamera-Log] Starter stream...");
         try {
             const constraints = {
                 video: {
-                    facingMode: 'environment',
+                    facingMode: CONFIG.facingMode,
                     advanced: [{ torch: isTorchOn }]
                 }
             };
@@ -104,7 +185,8 @@
 
             const tracks = mediaStream.getVideoTracks();
             if (tracks.length > 0) {
-                videoTrack = tracks[0];
+                videoTrack = tracks[0]; 
+                console.log("[Kamera-Log] Aktivt videoTrack fundet:", videoTrack.label);
             }
 
             const capabilities = (videoTrack && videoTrack.getCapabilities) ? videoTrack.getCapabilities() : {};
@@ -113,25 +195,27 @@
                 torchBtn.classList.remove('d-none');
                 updateTorchUI();
             } else {
-                console.log("Torch understøttes ikke på denne enhed.");
+                console.log("[Kamera-Log] Torch understøttes ikke.");
                 torchBtn.classList.add('d-none');
             }
 
             isRunning = true;
+            tickCounter = 0;
             
             startBtn.classList.add('d-none');
             stopBtn.classList.remove('d-none');
+            scannerTarget.style.display = 'block'; 
 
-            // NYT: Start 1-minutters timer til automatisk stop (1 * 60 * 1000 ms)
+            // Timer sat op via CONFIG
             autoStopTimer = setTimeout(() => {
-                console.log("Automatisk stop aktiveret efter x minutter.");
+                console.log("[Kamera-Log] Timeout nået ud fra CONFIG.");
                 stopStream();
-            }, 60000);
+            }, CONFIG.autoStopTimeMS);
 
             window.requestAnimationFrame(tick);
         } catch (err) {
-            console.error("Fejl ved start af kamera:", err);
-            alert("Kunne ikke starte videostream. Tjek kameratilladelser.");
+            console.error("[Kamera-Log] Fejl ved start:", err);
+            alert("Kunne ikke starte videostream: " + err.message);
         }
     }
 
@@ -146,8 +230,8 @@
             });
             updateTorchUI();
         } catch (err) {
-            console.error("Kunne ikke ændre torch state:", err);
-            isTorchOn = !isTorchOn;
+            console.error("[Kamera-Log] Fejl ved ændring af torch:", err);
+            isTorchOn = !isTorchOn; 
         }
     }
 
@@ -162,9 +246,9 @@
     }
 
     async function stopStream() {
+        console.log("[Kamera-Log] Stopper stream...");
         isRunning = false;
 
-        // NYT: Ryd timeren, så den ikke forsøger at lukke et allerede lukket kamera ned senere
         if (autoStopTimer) {
             clearTimeout(autoStopTimer);
             autoStopTimer = null;
@@ -185,16 +269,17 @@
 
         video.srcObject = null;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height); 
 
         startBtn.classList.remove('d-none');
         stopBtn.classList.add('d-none');
         torchBtn.classList.add('d-none');
-    }
+        scannerTarget.style.display = 'none';}
+        startBtn.addEventListener('click', startStream);
+        stopBtn.addEventListener('click', stopStream);
+        torchBtn.addEventListener('click', toggleTorch);
 
-    startBtn.addEventListener('click', startStream);
-    stopBtn.addEventListener('click', stopStream);
-    torchBtn.addEventListener('click', toggleTorch);
-</script>
+        </script>
 
 </body>
 </html>
