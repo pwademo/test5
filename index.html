@@ -95,8 +95,10 @@
     const torchon = document.getElementById("torchon");
     const torchoff = document.getElementById("torchoff");
 
-    const regex = /([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})/g;
-
+    const regex = /([[SACDEFGHJKLMNPQRTUVWXY0-9][ACDEFGHJKLMNPQRTUVWXY0-9]{3})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})/g;
+ 
+    const pattern = /([[SACDEFGHJKLMNPQRTUVWXY0-9][ACDEFGHJKLMNPQRTUVWXY0-9]{3})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})/g;
+//const ufiRegex = /^[SACDEFGHJKLMNPQRTUVWXY0-9][ACDEFGHJKLMNPQRTUVWXY0-9]{3}-[ACDEFGHJKLMNPQRTUVWXY0-9]{4}-[ACDEFGHJKLMNPQRTUVWXY0-9]{4}-[ACDEFGHJKLMNPQRTUVWXY0-9]{4}$/;
 
     const btnlinkto = document.getElementById("btnlinkto");
 
@@ -133,7 +135,7 @@
 
 
       await worker.setParameters({
-        tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRTUVWXY-:"',//valid chars in a UFI Code
+        tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"',//valid chars in a UFI Code
         tessedit_pageseg_mode: 7 //SINGLE_Line
       });
 
@@ -237,7 +239,8 @@
       // var ufino = val.trim();
       let ufino = val;
       //var pattern = /^([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})$/;
-      let pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
+      //let pattern = /([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})-([0-9A-HJKMNP-Y]{4})/g;
+
       let _ufi = ufino.match(pattern);
       //console.log("_ufi:", _ufi);
       if (_ufi == null) return false;
