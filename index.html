@@ -4,27 +4,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner</title>
+    <title>Multi purpose scanner</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <style>
-        canvas {
+       /* */canvas {
             max-width: 100%;
             height: auto;
             background-color: #212529;
         }
 
         /* Container til at placere den røde søger-ramme oven på video-canvas */
-        .canvas-container {
+         /**/.canvas-container {
             position: relative;
-            display: inline-block;
+           display: inline-block;
             max-width: 100%;
         }
 
         /* Den visuelle røde scanner-ramme i midten */
+        /**/
         .scanner-target {
             position: absolute;
             top: 50%;
@@ -127,7 +128,6 @@
         crossorigin="anonymous"></script>
 
     <!-- Tesseract.js v7 CDN -->
-    <!-- <script src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/7.0.0/tesseract.min.js'></script> -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
 
 
@@ -136,18 +136,20 @@
 
     <script>
 
-     // #region CONFIG & VARIABLER
-        // Centralt konfigurationsobjekt til nem tilpasning
+        // #region CONFIG & VARIABLER
         const CONFIG = {
-            mainCanvasWidth: 640,    // Bredde på primær kilde-canvas
-            mainCanvasHeight: 480,   // Højde på primær kilde-canvas
-            targetWidth: 200,        // Læse felt i scanner-felt (Matcher din gamle præcision)
-            targetHeight: 30,        // Højde på læsefelt (Matcher din gamle præcision)
-            zoomFactor: 2.5,         // Forhøjet forstørrelse for bedre læsbarhed
-            autoStopTimeMS: 300000,  // Timeout (5 minutter = 300.000 ms)
-            facingMode: 'environment',// Bruger bagsidekamera
+            mainCanvasWidth: 640,
+            mainCanvasHeight: 360,
+            targetWidth: 200,
+            targetHeight: 30,
+            zoomFactor: 2.5,
+            autoStopTimeMS: 120000,
+            facingMode: 'environment',
             minContrast: 40,         // Minimum acceptabel kontrast (0-255)
-            blurThreshold: 25        // Dit gamle systems skarphedsgrænse (Laplacian Variance)
+            blurThreshold: 25,
+            useContrastCheck: false,   // Central kontrast-validering til/fra
+            uficodepattern: /([[ACDEFGHJKLMNPQRSTUVWXY0-9][ACDEFGHJKLMNPQRSTUVWXY0-9]{3})-([ACDEFGHJKLMNPQRSTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRSTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})/g
+
         };
 
         console.log("[Kamera-Log] Scriptet er indlæst med CONFIG:", CONFIG);
@@ -157,7 +159,7 @@
         const ctx = canvas.getContext('2d');
 
         const zoomCanvas = document.getElementById('zoomCanvas');
-        const zoomCtx = zoomCanvas.getContext('2d');
+        const zoomCtx = zoomCanvas.getContext('2d', { willReadFrequently: true });
         const scannerTarget = document.getElementById('scannerTarget');
 
         const startBtn = document.getElementById('startBtn');
@@ -165,7 +167,6 @@
         const torchBtn = document.getElementById('torchBtn');
         const torchIcon = document.getElementById('torchIcon');
 
-        // Nye elementer til dropdown og resultatvisning
         const engineSelect = document.getElementById('engineSelect');
         const resultOutput = document.getElementById('resultOutput');
         const clearResultBtn = document.getElementById('clearResultBtn');
@@ -177,43 +178,35 @@
         let autoStopTimer = null;
         let tickCounter = 0;
 
-        // Globale variable til Tesseract-motoren
         let tesseractWorker = null;
-        let isOcrProcessing = false;
 
-        // Initialiser dimensioner ud fra CONFIG
         canvas.width = CONFIG.mainCanvasWidth;
         canvas.height = CONFIG.mainCanvasHeight;
 
-        // Omregner pixels til procent af hoved-canvas for den røde rammes CSS overlay
         scannerTarget.style.width = ((CONFIG.targetWidth / CONFIG.mainCanvasWidth) * 100) + '%';
         scannerTarget.style.height = ((CONFIG.targetHeight / CONFIG.mainCanvasHeight) * 100) + '%';
 
-        // Tilpas zoomCanvas-størrelsen dynamisk baseret på CONFIG udklip * zoomfaktor
         zoomCanvas.width = CONFIG.targetWidth * CONFIG.zoomFactor;
         zoomCanvas.height = CONFIG.targetHeight * CONFIG.zoomFactor;
         // #endregion
 
-        // #region SCANNER MANAGER (MOTOR-STYRING)
+        // #region SCANNER MANAGER (MOTOR-STYRING MED CENTRAL KONTRAST)
         const ScannerManager = {
             engines: {},
             activeEngineKey: null,
 
-            // Registrer en ny scannings-motor og tilføj den til UI dropdown
             register(key, engine) {
                 this.engines[key] = engine;
                 console.log(`[Scanner-Manager] Motor registreret: ${engine.name} (${key})`);
 
-                // Tilføj motoren som en valgmulighed i dropdown-menuen
                 const option = document.createElement('option');
                 option.value = key;
                 option.textContent = engine.name;
                 engineSelect.appendChild(option);
 
-                if (!this.activeEngineKey) this.setEngine(key); // Sæt første registrerede motor som standard
+                if (!this.activeEngineKey) this.setEngine(key);
             },
 
-            // Skift den aktive motor
             setEngine(key) {
                 if (this.engines[key]) {
                     this.activeEngineKey = key;
@@ -222,20 +215,47 @@
                 }
             },
 
-            // Kør den aktive motor på det klippede zoomCanvas
-            processFrame(zoomCanvasElement, zoomContext) {
+            async processFrame(zoomCanvasElement, zoomContext) {
                 if (!this.activeEngineKey || !this.engines[this.activeEngineKey]) return;
 
                 const currentEngine = this.engines[this.activeEngineKey];
+                if (currentEngine.isProcessing) return;
+
                 const imageData = zoomContext.getImageData(0, 0, zoomCanvasElement.width, zoomCanvasElement.height);
 
-                currentEngine.scan(zoomCanvasElement, imageData);
+                // CENTRAL KONTRAST-VALIDERING
+                if (CONFIG.useContrastCheck) {
+                    const contrastValue = this.beregnKontrast(imageData);
+                    if (contrastValue < CONFIG.minContrast) {
+                        if (tickCounter % 20 === 0) {
+                            this.displayResult(`Scanning på pause: For lav kontrast (${contrastValue} < ${CONFIG.minContrast})`, false);
+                        }
+                        return; // AFBRYDER SCANNINGEN HER
+                    }
+                }
+
+                try {
+                    await currentEngine.scan(zoomCanvasElement, imageData);
+                } catch (error) {
+                    console.error(`[Scanner-Manager] Fejl under scanning med ${this.activeEngineKey}:`, error);
+                }
             },
 
-            // Hjælpefunktion som motorerne kan kalde for at udskrive resultatet på skærmen
+            beregnKontrast(imageData) {
+                const d = imageData.data;
+                let minPix = 255;
+                let maxPix = 0;
+                for (let i = 0; i < d.length; i += 4) {
+                    const brightness = (d[i] + d[i + 1] + d[i + 2]) / 3;
+                    if (brightness < minPix) minPix = brightness;
+                    if (brightness > maxPix) maxPix = brightness;
+                }
+                return Math.round(maxPix - minPix);
+            },
+
             displayResult(text, isSuccess = true) {
                 if (isSuccess) {
-                    resultOutput.className = "alert alert-success mb-0 p-3 text-center fw-bold fs-5 shadow-sm animate__animated animate__fadeIn";
+                    resultOutput.className = "alert alert-success mb-0 p-3 text-center fw-bold fs-5 shadow-sm";
                     resultOutput.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>${text}`;
                 } else {
                     resultOutput.className = "alert alert-secondary mb-0 p-3 text-center border-dashed font-monospace";
@@ -244,170 +264,274 @@
             }
         };
 
-        // Lyt efter manuelle skift i dropdown-menuen
         engineSelect.addEventListener('change', (e) => {
             ScannerManager.setEngine(e.target.value);
         });
 
-        // Ryd-knappen nulstiller resultatfeltet
         clearResultBtn.addEventListener('click', () => {
             ScannerManager.displayResult("Venter på scanning...", false);
         });
         // #endregion
 
-
-        // #region KAMERA-LOGIK & STREAM STYRING
-        function tick() {
-            if (!isRunning) return;
-
-            tickCounter++;
-
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // Find centret af hoved-canvas baseret på CONFIG-størrelserne
-                const sourceX = (canvas.width - CONFIG.targetWidth) / 2;
-                const sourceY = (canvas.height - CONFIG.targetHeight) / 2;
-
-                // Klip og forstør
-                zoomCtx.drawImage(
-                    canvas,
-                    sourceX, sourceY, CONFIG.targetWidth, CONFIG.targetHeight,
-                    0, 0, zoomCanvas.width, zoomCanvas.height
-                );
-
-                // Analyse-hook: Scanner hver 5. frame for at spare på CPU'en
-                if (tickCounter % 5 === 0) {
-                    ScannerManager.processFrame(zoomCanvas, zoomCtx);
-                }
-            } else {
-                if (tickCounter % 60 === 0) {
-                    console.warn(`[Kamera-Log] tick() venter på data. Status: ${video.readyState}`);
-                }
-            }
-
-            window.requestAnimationFrame(tick);
-        }
-
+        // #region KAMERA & BILLED-LOOP LOGIK
         async function startStream() {
-            console.log("[Kamera-Log] Starter stream...");
+            if (isRunning) return;
+
             try {
                 const constraints = {
                     video: {
                         facingMode: CONFIG.facingMode,
-                        advanced: [{ torch: isTorchOn }]
-                    }
+                        width: { ideal: CONFIG.mainCanvasWidth },
+                        height: { ideal: CONFIG.mainCanvasHeight }
+                    },
+                    audio: false
                 };
 
                 mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = mediaStream;
-                await video.play();
 
-                const tracks = mediaStream.getVideoTracks();
-                if (tracks.length > 0) {
-                    videoTrack = tracks[0]; // Rettet til direkte indeks for stabilitet
-                    console.log("[Kamera-Log] Aktivt videoTrack fundet:", videoTrack.label);
-                }
+                video.onloadedmetadata = () => {
+                    video.play();
+                    isRunning = true;
+                    tickCounter = 0;
 
-                const capabilities = (videoTrack && videoTrack.getCapabilities) ? videoTrack.getCapabilities() : {};
+                    startBtn.classList.add('d-none');
+                    stopBtn.classList.remove('d-none');
 
+                    videoTrack = mediaStream.getVideoTracks();
+                    checkTorchSupport(videoTrack);
+
+                    requestAnimationFrame(scanLoop);
+
+                    autoStopTimer = setTimeout(() => {
+                        stopStream();
+                        ScannerManager.displayResult("Scanneren stoppede automatisk efter timeout.", false);
+                    }, CONFIG.autoStopTimeMS);
+                };
+
+            } catch (err) {
+                console.error("[Kamera-Log] Kunne ikke starte kameraet:", err);
+                ScannerManager.displayResult("Kamerafejl: Kontroller adgangstilladelser.", false);
+            }
+        }
+
+        function stopStream() {
+            if (!isRunning) return;
+
+            if (autoStopTimer) clearTimeout(autoStopTimer);
+
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+
+            isTorchOn = false;
+            torchBtn.classList.add('d-none');
+            torchIcon.className = "bi bi-lightbulb";
+
+            isRunning = false;
+            videoTrack = null;
+            mediaStream = null;
+
+            startBtn.classList.remove('d-none');
+            stopBtn.classList.add('d-none');
+            scannerTarget.style.display = 'none';
+        }
+
+        async function checkTorchSupport(track) {
+            try {
+                const capabilities = track.getCapabilities();
                 if (capabilities.torch) {
                     torchBtn.classList.remove('d-none');
-                    updateTorchUI();
                 } else {
-                    console.log("[Kamera-Log] Torch understøttes ikke.");
                     torchBtn.classList.add('d-none');
                 }
-
-                isRunning = true;
-                tickCounter = 0;
-
-                startBtn.classList.add('d-none');
-                stopBtn.classList.remove('d-none');
-                scannerTarget.style.display = 'block';
-
-                // Timer sat op via CONFIG
-                autoStopTimer = setTimeout(() => {
-                    console.log("[Kamera-Log] Timeout nået ud fra CONFIG.");
-                    stopStream();
-                }, CONFIG.autoStopTimeMS);
-
-                window.requestAnimationFrame(tick);
-            } catch (err) {
-                console.error("[Kamera-Log] Fejl ved start:", err);
-                alert("Kunne ikke starte videostream: " + err.message);
+            } catch (e) {
+                torchBtn.classList.add('d-none');
             }
         }
 
         async function toggleTorch() {
             if (!videoTrack || !isRunning) return;
 
-            isTorchOn = !isTorchOn;
-
             try {
+                isTorchOn = !isTorchOn;
                 await videoTrack.applyConstraints({
                     advanced: [{ torch: isTorchOn }]
                 });
-                updateTorchUI();
+                torchIcon.className = isTorchOn ? "bi bi-lightbulb-fill text-warning" : "bi bi-lightbulb";
             } catch (err) {
-                console.error("[Kamera-Log] Fejl ved ændring af lommelygte:", err);
-                isTorchOn = !isTorchOn;
+                console.error("[Kamera-Log] Fejl ved styring af lommelygte:", err);
             }
         }
 
-        function updateTorchUI() {
-            if (isTorchOn) {
-                torchIcon.className = "bi bi-lightbulb-fill text-dark";
-                torchBtn.className = "btn btn-warning p-2 shadow-sm rounded-circle";
-            } else {
-                torchIcon.className = "bi bi-lightbulb text-secondary";
-                torchBtn.className = "btn btn-dark p-2 shadow-sm rounded-circle";
-            }
-        }
+        function scanLoop() {
+            if (!isRunning) return;
 
-        async function stopStream() {
-            console.log("[Kamera-Log] Stopper stream...");
-            isRunning = false;
+            tickCounter++;
 
-            if (autoStopTimer) {
-                clearTimeout(autoStopTimer);
-                autoStopTimer = null;
-            }
-            if (videoTrack) {
-                try {
-                    await videoTrack.applyConstraints({ advanced: [{ torch: false }] });
-                } catch (e) { }
-                videoTrack.stop();
-                videoTrack = null;
-            }
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(t => t.stop());
-                mediaStream = null;
-            }
-            video.srcObject = null;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            scannerTarget.style.display = 'block';
 
-            // Vi rydder kun hoved-canvas. Læse-canvas (zoomCanvas) bevarer sit billede!
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const sourceX = (canvas.width - CONFIG.targetWidth) / 2;
+            const sourceY = (canvas.height - CONFIG.targetHeight) / 2;
 
-            startBtn.classList.remove('d-none');
-            stopBtn.classList.add('d-none');
-            torchBtn.classList.add('d-none');
-            scannerTarget.style.display = 'none';
+            zoomCtx.drawImage(
+                canvas,
+                sourceX, sourceY, CONFIG.targetWidth, CONFIG.targetHeight,
+                0, 0, zoomCanvas.width, zoomCanvas.height
+            );
+
+            ScannerManager.processFrame(zoomCanvas, zoomCtx);
+
+            requestAnimationFrame(scanLoop);
         }
 
         startBtn.addEventListener('click', startStream);
         stopBtn.addEventListener('click', stopStream);
         torchBtn.addEventListener('click', toggleTorch);
         // #endregion
-       
-       
-       
+
+
+        // // #region REELLE MOTOR-PLUGINS
+
+        //         // #region MOTOR 1: LYSSTYRKE SCANNER
+        //         ScannerManager.register('dummy', {
+        //             name: "Lysstyrke Scanner (Test)",
+        //             scan(canvasElement, imageData) {
+        //                 let totalBrightness = 0;
+        //                 const d = imageData.data;
+        //                 for (let i = 0; i < d.length; i += 4) {
+        //                     totalBrightness += (d[i] + d[i + 1] + d[i + 2]) / 3;
+        //                 }
+        //                 const avg = Math.round(totalBrightness / (d.length / 4));
+        //                 ScannerManager.displayResult(`Målt lysstyrke i feltet: ${avg} / 255`, true);
+        //             }
+        //         });
+        //         // #endregion
+
+        //         // #region MOTOR 2: STREGKODE & QR-SCANNER
+        //         ScannerManager.register('barcode', {
+        //             name: "Stregkode & QR-Scanner",
+        //             async scan(canvasElement, imageData) {
+        //                 if ('BarcodeDetector' in window) {
+        //                     const detector = new BarcodeDetector({
+        //                         formats: ['qr_code', 'ean_13', 'code_128', 'code_39']
+        //                     });
+        //                     try {
+        //                         const barcodes = await detector.detect(canvasElement);
+        //                         if (barcodes.length > 0) {
+        //                             const codeValue = barcodes[0].rawValue;
+        //                             ScannerManager.displayResult(codeValue, true);
+        //                             if (typeof stopStream === "function") stopStream();
+        //                         }
+        //                     } catch (err) { 
+        //                         console.error("[Barcode-Motor] Detekteringsfejl:", err);
+        //                     }
+        //                 } else {
+        //                     if (tickCounter % 60 === 0) {
+        //                         ScannerManager.displayResult("BarcodeDetector API understøttes ikke i denne browser.", false);
+        //                     }
+        //                 }
+        //             }
+        //         });
+        //         // #endregion
+
+        //         // #region MOTOR 3: KONTRAST-MÅLER
+        //         ScannerManager.register('contrast', {
+        //             name: "Kontrast-måler (OCR Tjek)",
+        //             scan(canvasElement, imageData) {
+        //                 const d = imageData.data;
+        //                 let minPix = 255;
+        //                 let maxPix = 0;
+        //                 for (let i = 0; i < d.length; i += 4) {
+        //                     const brightness = (d[i] + d[i + 1] + d[i + 2]) / 3;
+        //                     if (brightness < minPix) minPix = brightness;
+        //                     if (brightness > maxPix) maxPix = brightness;
+        //                 }
+        //                 const contrast = Math.round(maxPix - minPix);
+        //                 const isContrastOk = contrast >= CONFIG.minContrast;
+
+        //                 if (isContrastOk) {
+        //                     ScannerManager.displayResult(`Kontrast: ${contrast} (Godkendt til OCR &checkmark;)`, true);
+        //                 } else {
+        //                     ScannerManager.displayResult(`Kontrast: ${contrast} (For lav! Minimum er ${CONFIG.minContrast})`, false);
+        //                 }
+        //             }
+        //         });
+        //         // #endregion
+
+        //         // #region REELLE MOTOR-PLUGINS
+
+        //         // #region MOTOR 1: LYSSTYRKE SCANNER
+        //         ScannerManager.register('dummy', {
+        //             name: "Lysstyrke Scanner (Test)",
+        //             scan(canvasElement, imageData) {
+        //                 let totalBrightness = 0;
+        //                 const d = imageData.data;
+        //                 for (let i = 0; i < d.length; i += 4) {
+        //                     totalBrightness += (d[i] + d[i + 1] + d[i + 2]) / 3;
+        //                 }
+        //                 const avg = Math.round(totalBrightness / (d.length / 4));
+        //                 ScannerManager.displayResult(`Målt lysstyrke i feltet: ${avg} / 255`, true);
+        //             }
+        //         });
+        //         // #endregion
+
+        //         // #region MOTOR 2: STREGKODE & QR-SCANNER
+        //         ScannerManager.register('barcode', {
+        //             name: "Stregkode & QR-Scanner",
+        //             async scan(canvasElement, imageData) {
+        //                 if ('BarcodeDetector' in window) {
+        //                     const detector = new BarcodeDetector({
+        //                         formats: ['qr_code', 'ean_13', 'code_128', 'code_39']
+        //                     });
+        //                     try {
+        //                         const barcodes = await detector.detect(canvasElement);
+        //                         if (barcodes.length > 0) {
+        //                             const codeValue = barcodes[0].rawValue;
+        //                             ScannerManager.displayResult(codeValue, true);
+        //                             if (typeof stopStream === "function") stopStream();
+        //                         }
+        //                     } catch (err) { 
+        //                         console.error("[Barcode-Motor] Detekteringsfejl:", err);
+        //                     }
+        //                 } else {
+        //                     if (tickCounter % 60 === 0) {
+        //                         ScannerManager.displayResult("BarcodeDetector API understøttes ikke i denne browser.", false);
+        //                     }
+        //                 }
+        //             }
+        //         });
+        //         // #endregion
+
+        //         // #region MOTOR 3: KONTRAST-MÅLER
+        //         ScannerManager.register('contrast', {
+        //             name: "Kontrast-måler (OCR Tjek)",
+        //             scan(canvasElement, imageData) {
+        //                 const d = imageData.data;
+        //                 let minPix = 255;
+        //                 let maxPix = 0;
+        //                 for (let i = 0; i < d.length; i += 4) {
+        //                     const brightness = (d[i] + d[i + 1] + d[i + 2]) / 3;
+        //                     if (brightness < minPix) minPix = brightness;
+        //                     if (brightness > maxPix) maxPix = brightness;
+        //                 }
+        //                 const contrast = Math.round(maxPix - minPix);
+        //                 const isContrastOk = contrast >= CONFIG.minContrast;
+
+        //                 if (isContrastOk) {
+        //                     ScannerManager.displayResult(`Kontrast: ${contrast} (Godkendt til OCR &checkmark;)`, true);
+        //                 } else {
+        //                     ScannerManager.displayResult(`Kontrast: ${contrast} (For lav! Minimum er ${CONFIG.minContrast})`, false);
+        //                 }
+        //             }
+        //         });
+        //         // #endregion
+
+
         // #region REELLE MOTOR-PLUGINS
-       
-       
-       
-       
-        // Motor 1: Test/Lysstyrke Scanner
+
+        // #region MOTOR 1: LYSSTYRKE SCANNER
         ScannerManager.register('dummy', {
             name: "Lysstyrke Scanner (Test)",
             scan(canvasElement, imageData) {
@@ -420,8 +544,9 @@
                 ScannerManager.displayResult(`Målt lysstyrke i feltet: ${avg} / 255`, true);
             }
         });
+        // #endregion
 
-        // Motor 2: QR & Stregkode Scanner
+        // #region MOTOR 2: STREGKODE & QR-SCANNER
         ScannerManager.register('barcode', {
             name: "Stregkode & QR-Scanner",
             async scan(canvasElement, imageData) {
@@ -432,130 +557,174 @@
                     try {
                         const barcodes = await detector.detect(canvasElement);
                         if (barcodes.length > 0) {
-                            ScannerManager.displayResult(barcodes.rawValue, true);
-                            stopStream();
+                            const codeValue = barcodes.rawValue;
+                            ScannerManager.displayResult(codeValue, true);
+                            if (typeof stopStream === "function") stopStream();
                         }
-                    } catch (err) { }
+                    } catch (err) {
+                        console.error("[Barcode-Motor] Detekteringsfejl:", err);
+                    }
                 } else {
                     if (tickCounter % 60 === 0) {
-                        ScannerManager.displayResult("BarcodeDetector API understøttes ikke i denne browser.", false);
+                        ScannerManager.displayResult("BarcodeDetector API understøttes ikke.", false);
                     }
                 }
             }
         });
+        // #endregion
 
-        // Motor 3: Kontrast-måler (Forberedelse til OCR)
+        // #region MOTOR 3: KONTRAST-MÅLER
         ScannerManager.register('contrast', {
             name: "Kontrast-måler (OCR Tjek)",
             scan(canvasElement, imageData) {
-                const d = imageData.data;
-                let minPix = 255;
-                let maxPix = 0;
-                for (let i = 0; i < d.length; i += 4) {
-                    const brightness = (d[i] + d[i + 1] + d[i + 2]) / 3;
-                    if (brightness < minPix) minPix = brightness;
-                    if (brightness > maxPix) maxPix = brightness;
-                }
-                const contrast = Math.round(maxPix - minPix);
+                const contrast = ScannerManager.beregnKontrast(imageData);
                 const isContrastOk = contrast >= CONFIG.minContrast;
 
                 if (isContrastOk) {
-                    ScannerManager.displayResult(`Kontrast: ${contrast} (Godkendt til OCR &checkmark;)`, true);
+                    ScannerManager.displayResult(`Kontrast: ${contrast} (Godkendt &checkmark;)`, true);
                 } else {
-                    ScannerManager.displayResult(`Kontrast: ${contrast} (For lav! Minimum er ${CONFIG.minContrast})`, false);
+                    ScannerManager.displayResult(`Kontrast: ${contrast} (For lav! Minimum: ${CONFIG.minContrast})`, false);
                 }
             }
         });
+        // #endregion
 
-        // Motor 4: Optimeret UFI OCR-Scanner (Med dine forbedrede parametre)
+        // #region MOTOR 4: UFI OCR-SCANNER
         ScannerManager.register('ufi_ocr', {
             name: "UFI Kode OCR-Scanner",
+            isProcessing: false,
+
             async init() {
                 if (tesseractWorker) return;
-                console.log("[OCR-Motor] Initialiserer Tesseract lynhurtig Worker med bruger-optimeringer...");
+                console.log("[OCR-Motor] Initialiserer Tesseract lynhurtig Worker med Init-only parametre...");
 
-                // Opretter en ren standard worker
-                tesseractWorker = await Tesseract.createWorker('eng');
+                // LØSNING: Init-only parametre skal sendes med som det 3. argument i createWorker!
+                tesseractWorker = await Tesseract.createWorker('eng', 1, {
+                    config: {
+                        tessedit_ocr_engine_mode: '1', // Kør udelukkende den lynhurtige LSTM motor
+                        load_system_dawg: '0',        // Slå system-ordbog helt fra under indlæsning
+                        load_freq_dawg: '0'            // Slå frekvens-ordbog helt fra under indlæsning
+                    }
+                });
 
-                // Anvender dine avancerede parametre til fuld ordbogs-deaktivering og skrift-optimering
-                // Whitelisten er her renset for B, I, O, S, Z, L baseret på den officielle UFI-standard
+                // Almindelige parametre, der godt må ændres efter initialisering
                 await tesseractWorker.setParameters({
-                    tessedit_pageseg_mode: 7, // SINGLE_LINE
-                    tessedit_ocr_engine_mode: 1, // 1 = LSTM kun (Lynhurtigt og præcist i v5+)
-                    tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"', // Dine præcise UFI-tegn
-
-                    // Slår ordbøger helt fra for rå tegn-genkendelse
-                    load_system_dawg: '0',
-                    load_freq_dawg: '0',
-                    language_model_penalty_non_freq_dict_word: '0',
-                    language_model_penalty_non_dict_word: '0',
-
-                    // Skrift- og layoutoptimering
-                    textord_min_xheight: '8', // Forbedrer læsning af helt små tegn
+                    tessedit_pageseg_mode: 7, // SINGLE_LINE (Læs billedet som én enkelt tekstlinje)
+                    tessedit_char_whitelist: '0123456789ACDEFGHJKMNPQRSTUVWXY-:"',
+                    textord_min_xheight: '8',
                     preserve_interword_spaces: '0'
                 });
                 console.log("[OCR-Motor] Optimeret worker er klar.");
             },
+
             async scan(canvasElement, imageData) {
-                if (isOcrProcessing) return;
-
-                // Kontrast-Validering
-                const d = imageData.data;
-                let minPix = 255; let maxPix = 0;
-                for (let i = 0; i < d.length; i += 4) {
-                    const b = (d[i] + d[i + 1] + d[i + 2]) / 3;
-                    if (b < minPix) minPix = b;
-                    if (b > maxPix) maxPix = b;
-                }
-                if ((maxPix - minPix) < CONFIG.minContrast) {
-                    if (tickCounter % 20 === 0) {
-                        ScannerManager.displayResult("OCR på pause: For dårlig kontrast i søgerfeltet.", false);
-                    }
-                    return;
-                }
-
                 if (!tesseractWorker) {
                     await this.init();
                 }
 
                 try {
-                    isOcrProcessing = true;
+                    this.isProcessing = true;
                     if (tickCounter % 15 === 0) {
                         ScannerManager.displayResult("Analyserer UFI-felt lynhurtigt...", false);
                     }
 
                     const { data: { text } } = await tesseractWorker.recognize(canvasElement);
-
-                    // Rens teksten for alt andet end tal, bogstaver og bindestreger, og gør den til store bogstaver
                     const cleanText = text.replace(/[^0-9A-Z-]/gi, '').toUpperCase();
 
-                    // Regex til at finde 16 UFI-tegn opdelt med bindestreger (Uden B, I, O, S, Z - dog S tillt som 1 karakter der er kontrol)
-                    //const ufiRegex = /[0-9ACDEFGHJKLMNPQRTUVWXY]{4}-[0-9ACDEFGHJKLMNPQRTUVWXY]{4}-[0-9ACDEFGHJKLMNPQRTUVWXY]{4}-[0-9ACDEFGHJKLMNPQRTUVWXY]{4}/;
-                    const ufiRegex = /([[SACDEFGHJKLMNPQRTUVWXY0-9][ACDEFGHJKLMNPQRTUVWXY0-9]{3})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})/;
-                                   
-                    //    const regex =    /([[SACDEFGHJKLMNPQRTUVWXY0-9][ACDEFGHJKLMNPQRTUVWXY0-9]{3})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})-([ACDEFGHJKLMNPQRTUVWXY0-9]{4})/g;
-
-                    
+                    // Regex uden indre parenteser, så den bare fanger hele den rå kode ud i én streng
+                    const ufiRegex = CONFIG.uficodepattern;
                     const match = cleanText.match(ufiRegex);
 
                     if (match) {
-                        const validatedUfi = match[0];
-                        console.log("[OCR-Motor] Gyldig UFI-kode fundet:", validatedUfi);
+                        // RETTELSE: Vi tager match[0] for at få den rene tekststreng ud af arrayet!
+                        const fundetUfiStreng = match[0];
 
-                        ScannerManager.displayResult(`UFI: ${validatedUfi}`, true);
-                        stopStream(); // Fryser det godkendte billede på zoom-canvas
+                        console.log(`%c[OCR-Regex-Match] Fandt mønster: ${fundetUfiStreng}`, 'color: #007bff; font-weight: bold;');
+
+                        // Nu modtager funktionen en rigtig tekststreng og kan lave sin længdekontrol korrekt
+                        if (this.validerUFIkode(fundetUfiStreng)) {
+                            console.log(`%c[OCR-Validering] SUCCES! Godkendt: ${fundetUfiStreng}`, 'color: #28a745; font-weight: bold;');
+                            ScannerManager.displayResult(`UFI: ${fundetUfiStreng}`, true);
+                            if (typeof stopStream === "function") stopStream();
+                        } else {
+                            if (tickCounter % 5 === 0) {
+                                ScannerManager.displayResult("UFI fundet, men afvist af format-validering...", false);
+                            }
+                        }
                     } else {
                         if (tickCounter % 30 === 0 && cleanText.length > 0) {
-                            console.log("[OCR-Motor] Tekst afvist af UFI-Regex:", cleanText);
+                            console.log("[OCR-Motor] Ingen Regex match på rå tekst:", cleanText);
                         }
                     }
                 } catch (err) {
                     console.error("[OCR-Motor] Fejl under OCR-scanning:", err);
                 } finally {
-                    isOcrProcessing = false;
+                    this.isProcessing = false;
                 }
+            },
+            validerUFIkode(ufi) {
+
+                // console.log(`%c  -> [Valider-Log] Starter tjek af: "${ufi}"`, 'color: #6c757d;');
+
+
+                // if (!ufi || typeof ufi !== 'string') return false;
+
+                // const renKode = ufi.replace(/-/g, '');
+                // if (renKode.length !== 16) {
+                //     console.warn(`  -> [Valider-Log] AFVIST: Længde: ${renKode.length} (Skal være 16)`);
+                //     return false;
+                // }
+
+                // const gyldigeTegnRegex = /^[0-9A-Z]{16}$/;
+                // if (!gyldigeTegnRegex.test(renKode)) {
+                //     console.warn("  -> [Valider-Log] AFVIST: Koden indeholder ulovlige tegn.");
+                //     return false;
+                // }
+
+                // console.log("%c  -> [Valider-Log] GODKENDT: Opfylder alle krav.", 'color: #28a745;');
+                // return true;
+
+
+
+                let ufino = ufi;
+
+                //VAL001 ensures that the UFI is composed of 19 characters (including the hyphens and excluding spaces); 
+                //Vi ved der er en korrekt formateret ufikode da den følger CONFIG.uficodepattern           
+
+                let _ufino = ufino.replace(/-/g, "");//fjern alle bindestreger/hyphens
+
+
+                //Validering af UFI kode som beskrevet i  UFI Developer Manual
+                //Table 2-3 Base-31 character set viser lovlige karakterer og deres tilhørende talværdi
+                //For at omsætte en karakter til et tal finder man karakterens index i nedenstående string
+                //fx har karakter 8 index 8 og karakter C har index 11
+                var repr = "0123456789ACDEFGHJKMNPQRSTUVWXY";
+
+                var _sum = 0;
+
+                //Alle de 16 karakterer løbes igennem.
+                for (var i = 0; i < 16; i++) {
+                    var reprChar = _ufino[i];//Char på plads nr. i
+                    var ui = repr.indexOf(reprChar);//index og dermed værdien af Char på plads nr. i
+                    _sum += (i + 1) * ui;
+                }
+                return _sum % 31 === 0;
+
+
+
+
+
             }
         });
+        // #endregion
+
+        clearResultBtn.addEventListener('click', () => {
+            zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+        });
+
+        ScannerManager.setEngine('ufi_ocr');
+        // #endregion
+
 
         // Sørg for at Ryd-knappen også sletter billedet på det fastfrosne zoomCanvas bagefter
         clearResultBtn.addEventListener('click', () => {
@@ -565,9 +734,7 @@
         // Definer hvilken motor der skal være aktiv som standard ved indlæsning
         ScannerManager.setEngine('ufi_ocr');
         // #endregion
-  
-  
-  </script>>
+    </script>>
 
 </body>
 
